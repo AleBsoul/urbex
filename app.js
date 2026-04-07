@@ -4,6 +4,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let map, allPins = [], markers = [], currentRoom = null, roomsCache = [], isCustomZone = false;
 
+// MENU MOBILE
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const btn = document.getElementById('mobile-menu-toggle');
@@ -11,6 +12,7 @@ function toggleSidebar() {
     btn.innerText = sidebar.classList.contains('open') ? "✕" : "☰";
 }
 
+// INIZIALIZZAZIONE
 async function init() {
     try {
         map = L.map('map').setView([45.4642, 9.1900], 12);
@@ -28,12 +30,12 @@ async function init() {
             await createAutoRoom();
         } else {
             await refreshRoomsList();
-            const idToLoad = lastId && allIds.includes(lastId) ? lastId : allIds[0];
+            const idToLoad = (lastId && allIds.includes(lastId)) ? lastId : allIds[0];
             await loadRoom(idToLoad);
         }
     } catch (err) {
+        console.error("ERRORE CRITICO:", err);
         document.getElementById('room-name').innerText = "Errore Init";
-        console.error(err);
     }
 }
 
@@ -74,7 +76,10 @@ async function loadRoom(id) {
         localStorage.setItem('urbex_room_id', id);
         document.getElementById('room-name').innerText = data.name;
         document.getElementById('room-code').innerText = data.invite_code;
-        if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('mobile-menu-toggle').innerText = "☰";
+        }
         renderRoomsUI();
         fetchPins();
     }
@@ -120,9 +125,7 @@ function renderList() {
     const zones = [...new Set(allPins.map(p => p.zone || 'Generale'))].sort();
     
     const select = document.getElementById('f-zone-select');
-    const currentZone = select.value;
     select.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
-    if (zones.includes(currentZone)) select.value = currentZone;
 
     container.innerHTML = zones.map(z => {
         const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
@@ -133,7 +136,7 @@ function renderList() {
                 <div class="pin-btns">
                     <button onclick="toggleComp('${p.id}', ${p.is_completed})">${p.is_completed ? 'Riapri' : 'Fatto'}</button>
                     <button onclick="openModal('${p.id}')">Edit</button>
-                    <button onclick="deletePin('${p.id}')" style="color:#ff6b6b">Elimina</button>
+                    <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
                 </div>
             </div>
         `).join('');
@@ -207,8 +210,8 @@ async function joinRoomByCode() {
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
-async function deletePin(id) { if(confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
+async function deletePinDB(id) { if(confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
 async function toggleComp(id, s) { await supabaseClient.from('pins').update({ is_completed: !s }).eq('id', id); fetchPins(); }
 function copyCode() { navigator.clipboard.writeText(document.getElementById('room-code').innerText); alert("Codice copiato!"); }
 
-window.onload = init;2
+window.onload = init;

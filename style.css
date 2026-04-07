@@ -40,7 +40,7 @@ html,
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    z-index: 100;
+    z-index: 2000;
     transition: transform 0.3s ease;
 }
 
@@ -301,6 +301,7 @@ select {
     border: 1px solid #444;
     color: var(--accent);
     border-radius: 8px;
+    cursor: pointer;
     font-weight: bold;
 }
 
