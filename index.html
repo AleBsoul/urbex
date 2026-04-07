@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urbex Manager Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="main-container">
+        <!-- Dashboard Sinistra -->
+        <aside id="dashboard">
+            <header>
+                <h1>Urbex Explorer</h1>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Cerca tra i tuoi pin...">
+                </div>
+            </header>
+
+            <section id="pin-list-container">
+                <div id="grouped-list">
+                    <!-- Qui verranno caricati i pin raggruppati per zona -->
+                    <p class="empty-msg">Nessun pin trovato. Clicca sulla mappa per aggiungerne uno.</p>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Mappa Destra -->
+        <main id="map-container">
+            <div id="map"></div>
+        </main>
+
+        <!-- Modal Form (compare solo per nuovo/modifica) -->
+        <div id="editor-modal" class="hidden">
+            <div class="modal-content">
+                <h2 id="modal-title">Dettagli Posto</h2>
+                <form id="pin-form">
+                    <input type="hidden" id="edit-id">
+                    <input type="text" id="title" placeholder="Nome del posto" required>
+                    <textarea id="description" placeholder="Note, accesso, atmosfera..."></textarea>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Zona</label>
+                            <select id="zone">
+                                <option value="Città">Città (Vicino)</option>
+                                <option value="Fuori Porta">Fuori Porta (Medio)</option>
+                                <option value="Viaggio Lungo">Viaggio Lungo (Lontano)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Pericolo</label>
+                            <input type="number" id="danger" min="1" max="5" value="1">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <input type="number" step="any" id="lat-manual" placeholder="Latitudine">
+                        <input type="number" step="any" id="lng-manual" placeholder="Longitudine">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-primary">Salva Posto</button>
+                        <button type="button" id="close-modal" class="btn-secondary">Annulla</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
