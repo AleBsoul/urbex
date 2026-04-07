@@ -1,70 +1,82 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urbex Manager Pro</title>
+    <title>Urbex Explorer</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div id="main-container">
-        <!-- Dashboard Sinistra -->
-        <aside id="dashboard">
+    <div id="app">
+        <aside id="sidebar">
             <header>
-                <h1>Urbex Explorer</h1>
-                <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Cerca tra i tuoi pin...">
+                <h1>My pins</h1>
+                <div class="card">
+                    <p class="label">Mappa Attiva:</p>
+                    <h2 id="room-name">Nessuna</h2>
+                    <p class="label">Codice Invito:</p>
+                    <div class="code-box">
+                        <code id="room-code">----</code>
+                        <button onclick="copyCode()" title="Copia codice">📋</button>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <div class="join-input">
+                        <input type="text" id="join-code-field" placeholder="Codice amico...">
+                        <button onclick="joinRoomByCode()">Entra</button>
+                    </div>
+                    <button onclick="createNewRoom()" class="btn-secondary"
+                        style="margin-top:10px; width:100%; padding:8px; background:#333; border:1px solid #444; color:white; border-radius:4px; cursor:pointer;">+
+                        Crea Nuova Stanza</button>
+                </div>
+
+                <!-- LISTA DELLE TUE STANZE -->
+                <div id="my-rooms-container" style="margin-top: 20px;">
+                    <p class="label">Le tue mappe salvate:</p>
+                    <div id="rooms-nav-list">
+                        <!-- Qui appariranno i tasti delle stanze -->
+                    </div>
                 </div>
             </header>
-
-            <section id="pin-list-container">
-                <div id="grouped-list">
-                    <!-- Qui verranno caricati i pin raggruppati per zona -->
-                    <p class="empty-msg">Nessun pin trovato. Clicca sulla mappa per aggiungerne uno.</p>
-                </div>
+            <section id="content">
+                <input type="text" id="search-field" placeholder="Cerca tra i posti...">
+                <div id="pin-list-container"></div>
             </section>
         </aside>
 
-        <!-- Mappa Destra -->
         <main id="map-container">
             <div id="map"></div>
         </main>
 
-        <!-- Modal Form (compare solo per nuovo/modifica) -->
-        <div id="editor-modal" class="hidden">
+        <!-- Modale -->
+        <div id="modal-overlay" class="hidden">
             <div class="modal-content">
-                <h2 id="modal-title">Dettagli Posto</h2>
+                <h3>Dettagli Posto</h3>
                 <form id="pin-form">
                     <input type="hidden" id="edit-id">
-                    <input type="text" id="title" placeholder="Nome del posto" required>
-                    <textarea id="description" placeholder="Note, accesso, atmosfera..."></textarea>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Zona</label>
-                            <select id="zone">
-                                <option value="Città">Città (Vicino)</option>
-                                <option value="Fuori Porta">Fuori Porta (Medio)</option>
-                                <option value="Viaggio Lungo">Viaggio Lungo (Lontano)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Pericolo</label>
-                            <input type="number" id="danger" min="1" max="5" value="1">
-                        </div>
+                    <input type="text" id="f-title" placeholder="Nome posto" required>
+                    <textarea id="f-desc" placeholder="Descrizione"></textarea>
+                    <div class="row">
+                        <select id="f-zone">
+                            <option value="Città">Città</option>
+                            <option value="Fuori Porta">Fuori Porta</option>
+                            <option value="Viaggio Lungo">Viaggio Lungo</option>
+                        </select>
+                        <input type="number" id="f-danger" min="1" max="5" value="1">
                     </div>
-
-                    <div class="form-row">
-                        <input type="number" step="any" id="lat-manual" placeholder="Latitudine">
-                        <input type="number" step="any" id="lng-manual" placeholder="Longitudine">
+                    <div class="row">
+                        <input type="number" step="any" id="f-lat" placeholder="Lat" required>
+                        <input type="number" step="any" id="f-lng" placeholder="Lng" required>
                     </div>
-
-                    <div class="modal-actions">
-                        <button type="submit" class="btn-primary">Salva Posto</button>
-                        <button type="button" id="close-modal" class="btn-secondary">Annulla</button>
+                    <div class="modal-btns">
+                        <button type="submit" class="btn-save">Salva</button>
+                        <button type="button" onclick="closeModal()" class="btn-cancel">Annulla</button>
                     </div>
                 </form>
             </div>
@@ -72,4 +84,5 @@
     </div>
     <script src="app.js"></script>
 </body>
+
 </html>
