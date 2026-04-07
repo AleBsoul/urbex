@@ -1,84 +1,69 @@
-// 1. CONFIGURAZIONE SUPABASE
 const SUPABASE_URL = "https://jxtxxlzunjofjzdhcppp.supabase.co";
 const SUPABASE_KEY = "sb_publishable_59Q9W66beBPxHmFAsg82Aw_dg9O-KgV"; 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let map, allPins = [], markers = [], currentRoom = null;
-let roomsCache = []; // Cache per le stanze
+let map, allPins = [], markers = [], currentRoom = null, roomsCache = [], isCustomZone = false;
 
-// 2. GESTIONE MEMORIA LOCALE
-function getSavedRoomIds() {
-    const saved = localStorage.getItem('urbex_rooms_list');
-    return saved ? JSON.parse(saved) : [];
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const btn = document.getElementById('mobile-menu-toggle');
+    sidebar.classList.toggle('open');
+    btn.innerText = sidebar.classList.contains('open') ? "✕" : "☰";
 }
 
-function saveRoomIdToList(id) {
-    let ids = getSavedRoomIds();
-    if (!ids.includes(id)) {
-        ids.push(id);
-        localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
-    }
-    localStorage.setItem('urbex_room_id', id);
-}
-
-// 3. INIZIALIZZAZIONE APP
 async function init() {
-    map = L.map('map').setView([45.4642, 9.1900], 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    try {
+        map = L.map('map').setView([45.4642, 9.1900], 12);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    map.on('click', (e) => {
-        if(!currentRoom) return alert("Per favore, crea o entra in una stanza prima!");
-        openModal(null, e.latlng);
-    });
+        map.on('click', (e) => { if(currentRoom) openModal(null, e.latlng); });
+        
+        document.getElementById('search-field').oninput = renderList;
+        document.getElementById('pin-form').onsubmit = handleSave;
 
-    document.getElementById('search-field').addEventListener('input', renderList);
-    document.getElementById('pin-form').addEventListener('submit', handleSave);
+        const allIds = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+        const lastId = localStorage.getItem('urbex_room_id');
 
-    // Caricamento iniziale corretto
-    const lastId = localStorage.getItem('urbex_room_id');
-    const allIds = getSavedRoomIds();
-
-    if (allIds.length > 0) {
-        await refreshRoomsList(); // Carica i nomi nella cache una volta sola
-        if (lastId && allIds.includes(lastId)) {
-            await loadRoom(lastId); // Imposta la stanza attiva
+        if (allIds.length === 0) {
+            await createAutoRoom();
+        } else {
+            await refreshRoomsList();
+            const idToLoad = lastId && allIds.includes(lastId) ? lastId : allIds[0];
+            await loadRoom(idToLoad);
         }
+    } catch (err) {
+        document.getElementById('room-name').innerText = "Errore Init";
+        console.error(err);
     }
 }
 
-// 4. LOGICA STANZE (CORRETTA PER EVITARE DUPLICATI)
-async function refreshRoomsList() {
-    const ids = getSavedRoomIds();
-    const listContainer = document.getElementById('rooms-nav-list');
-    if(!listContainer) return;
-
-    if (ids.length === 0) {
-        listContainer.innerHTML = "<small style='color:#666; padding:10px; display:block;'>Nessuna mappa salvata</small>";
-        roomsCache = [];
-        return;
-    }
-
-    // SCARICA I DATI E SOSTITUISCE LA CACHE (NON AGGIUNGE)
-    const { data, error } = await supabaseClient.from('rooms').select('id, name').in('id', ids);
+async function createAutoRoom() {
+    const { data } = await supabaseClient.from('rooms').insert([{ name: "Mappa Personale 🏠" }]).select().single();
     if (data) {
-        roomsCache = data; // Sostituisce interamente la cache con i dati freschi
+        const ids = [data.id];
+        localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
+        await refreshRoomsList();
+        await loadRoom(data.id);
     }
+}
 
-    renderRoomsUI();
+async function refreshRoomsList() {
+    const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+    if (ids.length === 0) return;
+    const { data } = await supabaseClient.from('rooms').select('id, name').in('id', ids);
+    if (data) {
+        roomsCache = data;
+        renderRoomsUI();
+    }
 }
 
 function renderRoomsUI() {
-    const listContainer = document.getElementById('rooms-nav-list');
-    if(!listContainer) return;
-    
-    // Svuota l'HTML prima di ricostruirlo
-    listContainer.innerHTML = roomsCache.map(room => `
-        <button class="room-nav-item ${currentRoom?.id === room.id ? 'active' : ''}" 
-                onclick="loadRoom('${room.id}')">
-            ${room.name}
-        </button>
+    const list = document.getElementById('rooms-nav-list');
+    list.innerHTML = roomsCache.map(r => `
+        <div class="room-nav-item ${currentRoom?.id === r.id ? 'active' : ''}" onclick="loadRoom('${r.id}')">
+            <span>${r.name}</span>
+            <button class="btn-delete-room" onclick="deleteRoom(event, '${r.id}')" title="Elimina mappa">✕</button>
+        </div>
     `).join('');
 }
 
@@ -86,54 +71,30 @@ async function loadRoom(id) {
     const { data } = await supabaseClient.from('rooms').select('*').eq('id', id).single();
     if (data) {
         currentRoom = data;
-        localStorage.setItem('urbex_room_id', data.id);
-        
+        localStorage.setItem('urbex_room_id', id);
         document.getElementById('room-name').innerText = data.name;
         document.getElementById('room-code').innerText = data.invite_code;
-        
-        renderRoomsUI(); // Aggiorna solo la grafica (le classi .active)
+        if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+        renderRoomsUI();
         fetchPins();
     }
 }
 
-async function createNewRoom() {
-    const name = prompt("Nome della nuova stanza:");
-    if (!name) return;
-    const { data, error } = await supabaseClient.from('rooms').insert([{ name: name }]).select().single();
-    if (error) {
-        alert("Errore: " + error.message);
-    } else {
-        saveRoomIdToList(data.id);
-        await refreshRoomsList(); // Ricarica tutto correttamente
-        setRoom(data);
+async function deleteRoom(e, id) {
+    e.stopPropagation();
+    if (!confirm("Rimuovere questa mappa dalla tua lista?")) return;
+    
+    let ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+    ids = ids.filter(i => i !== id);
+    localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
+
+    if (currentRoom?.id === id) {
+        ids.length > 0 ? await loadRoom(ids[0]) : await createAutoRoom();
     }
+    await refreshRoomsList();
 }
 
-function setRoom(room) {
-    currentRoom = room;
-    document.getElementById('room-name').innerText = room.name;
-    document.getElementById('room-code').innerText = room.invite_code;
-    fetchPins();
-    renderRoomsUI();
-}
-
-async function joinRoomByCode() {
-    const code = document.getElementById('join-code-field').value.trim();
-    if (!code) return;
-    const { data } = await supabaseClient.from('rooms').select('*').eq('invite_code', code).single();
-    if (data) {
-        saveRoomIdToList(data.id);
-        await refreshRoomsList();
-        setRoom(data);
-        document.getElementById('join-code-field').value = "";
-    } else {
-        alert("Codice stanza non trovato!");
-    }
-}
-
-// 5. GESTIONE PIN
 async function fetchPins() {
-    if (!currentRoom) return;
     const { data } = await supabaseClient.from('pins').select('*').eq('room_id', currentRoom.id);
     allPins = data || [];
     renderAll();
@@ -142,14 +103,11 @@ async function fetchPins() {
 function renderAll() {
     markers.forEach(m => map.removeLayer(m));
     markers = [];
-
     allPins.forEach(p => {
         if (p.latitude && p.longitude) {
-            const color = p.is_completed ? '#27ae60' : (p.zone === 'Viaggio Lungo' ? '#ff4e00' : '#4287f5');
-            const m = L.circleMarker([p.latitude, p.longitude], { 
-                radius: 10, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.8 
-            }).addTo(map);
-            m.bindPopup(`<b>${p.title}</b><br>${p.description || ''}`);
+            const color = p.is_completed ? '#27ae60' : '#4287f5';
+            const m = L.circleMarker([p.latitude, p.longitude], { radius: 10, fillColor: color, color: '#fff', fillOpacity: 0.8 }).addTo(map);
+            m.bindPopup(`<b>${p.title}</b>`);
             markers.push(m);
         }
     });
@@ -158,134 +116,99 @@ function renderAll() {
 
 function renderList() {
     const term = document.getElementById('search-field').value.toLowerCase();
-    const listContainer = document.getElementById('pin-list-container');
-    listContainer.innerHTML = "";
+    const container = document.getElementById('pin-list-container');
+    const zones = [...new Set(allPins.map(p => p.zone || 'Generale'))].sort();
     
-    const zones = ["Città", "Fuori Porta", "Viaggio Lungo"];
-    zones.forEach(z => {
-        const pins = allPins.filter(p => p.zone === z && p.title.toLowerCase().includes(term));
-        if (pins.length > 0) {
-            const group = document.createElement('div');
-            group.className = 'zone-group';
-            group.innerHTML = `<div class="zone-header">${z}</div>` + pins.map(p => `
-                <div class="pin-item ${p.is_completed ? 'completed' : ''}">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <b>${p.title}</b>
-                    </div>
-                    <div class="pin-btns">
-                        <button onclick="toggleComp('${p.id}', ${p.is_completed})">${p.is_completed ? 'riapri' : 'completa'}</button>
-                        <button onclick="openModal('${p.id}')">Modifica</button>
-                        <button onclick="deletePin('${p.id}')" style="color: #ff6b6b">Elimina</button>
-                    </div>
+    const select = document.getElementById('f-zone-select');
+    const currentZone = select.value;
+    select.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
+    if (zones.includes(currentZone)) select.value = currentZone;
+
+    container.innerHTML = zones.map(z => {
+        const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
+        if (pins.length === 0) return "";
+        return `<div class="zone-header">📂 ${z}</div>` + pins.map(p => `
+            <div class="pin-item ${p.is_completed ? 'completed' : ''}">
+                <div style="display:flex; justify-content:space-between"><b>${p.title}</b> <small>${p.latitude ? '📍' : '📝'}</small></div>
+                <div class="pin-btns">
+                    <button onclick="toggleComp('${p.id}', ${p.is_completed})">${p.is_completed ? 'Riapri' : 'Fatto'}</button>
+                    <button onclick="openModal('${p.id}')">Edit</button>
+                    <button onclick="deletePin('${p.id}')" style="color:#ff6b6b">Elimina</button>
                 </div>
-            `).join('');
-            listContainer.appendChild(group);
-        }
-    });
+            </div>
+        `).join('');
+    }).join('');
 }
 
-// 6. MODALE E SALVATAGGIO
+function toggleZoneInput(reset = false) {
+    isCustomZone = reset ? false : !isCustomZone;
+    document.getElementById('f-zone-select').classList.toggle('hidden', isCustomZone);
+    document.getElementById('f-zone-custom').classList.toggle('hidden', !isCustomZone);
+    document.getElementById('btn-toggle-zone').innerText = isCustomZone ? "↩" : "+";
+}
+
 function openModal(id = null, latlng = null) {
-    const modal = document.getElementById('modal-overlay');
+    toggleZoneInput(true);
     document.getElementById('pin-form').reset();
     document.getElementById('edit-id').value = id || "";
-    
     if (id) {
         const p = allPins.find(x => x.id === id);
         document.getElementById('f-title').value = p.title;
         document.getElementById('f-desc').value = p.description;
-        document.getElementById('f-zone').value = p.zone;
-        document.getElementById('f-danger').value = p.danger_level;
+        document.getElementById('f-zone-select').value = p.zone;
         document.getElementById('f-lat').value = p.latitude || "";
         document.getElementById('f-lng').value = p.longitude || "";
     } else if (latlng) {
         document.getElementById('f-lat').value = latlng.lat.toFixed(6);
         document.getElementById('f-lng').value = latlng.lng.toFixed(6);
     }
-    modal.classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('modal-overlay').classList.add('hidden');
+    document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
 async function handleSave(e) {
     e.preventDefault();
     const id = document.getElementById('edit-id').value;
-    
-    const latVal = document.getElementById('f-lat').value;
-    const lngVal = document.getElementById('f-lng').value;
-
+    const zone = isCustomZone ? document.getElementById('f-zone-custom').value : document.getElementById('f-zone-select').value;
     const payload = {
         title: document.getElementById('f-title').value,
         description: document.getElementById('f-desc').value,
-        zone: document.getElementById('f-zone').value,
-        danger_level: parseInt(document.getElementById('f-danger').value),
-        latitude: latVal !== "" ? parseFloat(latVal) : null,
-        longitude: lngVal !== "" ? parseFloat(lngVal) : null,
+        zone: zone || 'Generale',
+        latitude: document.getElementById('f-lat').value ? parseFloat(document.getElementById('f-lat').value) : null,
+        longitude: document.getElementById('f-lng').value ? parseFloat(document.getElementById('f-lng').value) : null,
         room_id: currentRoom.id
     };
-
-    const { error } = id 
-        ? await supabaseClient.from('pins').update(payload).eq('id', id)
-        : await supabaseClient.from('pins').insert([payload]);
-
-    if (!error) { 
-        closeModal(); 
-        fetchPins(); 
-    } else { 
-        alert("Errore salvataggio: " + error.message); 
-    }
+    const { error } = id ? await supabaseClient.from('pins').update(payload).eq('id', id) : await supabaseClient.from('pins').insert([payload]);
+    if (!error) { closeModal(); fetchPins(); }
 }
 
-async function deletePin(id) {
-    if (confirm("Eliminare definitivamente questo posto?")) {
-        await supabaseClient.from('pins').delete().eq('id', id);
-        fetchPins();
-    }
-}
-
-async function toggleComp(id, status) {
-    await supabaseClient.from('pins').update({ is_completed: !status }).eq('id', id);
-    fetchPins();
-}
-
-function copyCode() {
-    const code = document.getElementById('room-code').innerText;
-    if (code === "----") return;
-    navigator.clipboard.writeText(code);
-    alert("Codice copiato!");
-}
-
-window.onload = init;
-
-// Funzione per il menu mobile
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('open');
-    
-    // Cambia l'icona del tasto
-    const btn = document.getElementById('mobile-menu-toggle');
-    btn.innerText = sidebar.classList.contains('open') ? "✕" : "☰";
-}
-
-// Modifica la funzione loadRoom per chiudere la sidebar su mobile dopo la selezione
-async function loadRoom(id) {
-    const { data } = await supabaseClient.from('rooms').select('*').eq('id', id).single();
+async function createNewRoom() {
+    const name = prompt("Nome Mappa:");
+    if (!name) return;
+    const { data } = await supabaseClient.from('rooms').insert([{ name }]).select().single();
     if (data) {
-        currentRoom = data;
-        localStorage.setItem('urbex_room_id', id);
-        document.getElementById('room-name').innerText = data.name;
-        document.getElementById('room-code').innerText = data.invite_code;
-        renderRoomsUI();
-        fetchPins();
-
-        // CHIUDI SIDEBAR SU MOBILE SE APERTA
-        if (window.innerWidth <= 768) toggleSidebar();
+        const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+        ids.push(data.id);
+        localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
+        await refreshRoomsList();
+        loadRoom(data.id);
     }
 }
 
-// Modifica closeModal per assicurarti che l'overlay non blocchi la mappa
-function closeModal() { 
-    document.getElementById('modal-overlay').classList.add('hidden'); 
+async function joinRoomByCode() {
+    const code = document.getElementById('join-code-field').value.trim();
+    const { data } = await supabaseClient.from('rooms').select('*').eq('invite_code', code).single();
+    if (data) {
+        const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+        if(!ids.includes(data.id)) ids.push(data.id);
+        localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
+        await refreshRoomsList();
+        loadRoom(data.id);
+    }
 }
+
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+async function deletePin(id) { if(confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
+async function toggleComp(id, s) { await supabaseClient.from('pins').update({ is_completed: !s }).eq('id', id); fetchPins(); }
+function copyCode() { navigator.clipboard.writeText(document.getElementById('room-code').innerText); alert("Codice copiato!"); }
+
+window.onload = init;2

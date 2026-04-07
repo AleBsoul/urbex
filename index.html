@@ -1,56 +1,41 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urbex Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Urbex Explorer | Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <button id="mobile-menu-toggle" onclick="toggleSidebar()">☰</button>
     <div id="app">
+        <button id="mobile-menu-toggle" onclick="toggleSidebar()">☰</button>
+
         <aside id="sidebar">
             <header>
-                <h1>My pins</h1>
+                <h1>Urbex Explorer</h1>
                 <div class="card">
                     <p class="label">Mappa Attiva:</p>
-                    <h2 id="room-name">Nessuna</h2>
+                    <h2 id="room-name">Inizializzazione...</h2>
                     <p class="label">Codice Invito:</p>
                     <div class="code-box">
                         <code id="room-code">----</code>
-                        <button onclick="copyCode()" title="Copia codice">📋</button>
+                        <button onclick="copyCode()">📋</button>
                     </div>
                 </div>
-
-
                 <div class="actions">
-                    <button onclick="openModal()" class="btn-primary" style="margin-bottom:10px;">+ Aggiungi Pin
-                        Manuale</button>
+                    <button onclick="openModal()" class="btn-primary">+ Aggiungi Pin Manuale</button>
                     <div class="join-input">
                         <input type="text" id="join-code-field" placeholder="Codice amico...">
                         <button onclick="joinRoomByCode()">Entra</button>
                     </div>
-                    <button onclick="createNewRoom()" class="btn-secondary"
-                        style="margin-top:10px; width:100%; padding:8px; background:#333; border:1px solid #444; color:white; border-radius:4px; cursor:pointer;">+
-                        Crea Nuova Stanza</button>
+                    <button onclick="createNewRoom()" class="btn-secondary">+ Nuova Stanza</button>
                 </div>
-
-                <div id="my-rooms-container" style="margin-top: 20px;">
+                <div id="my-rooms-container">
                     <p class="label">Le tue mappe salvate:</p>
                     <div id="rooms-nav-list"></div>
-                </div>
-
-                <!-- LISTA DELLE TUE STANZE -->
-                <div id="my-rooms-container" style="margin-top: 20px;">
-                    <p class="label">Le tue mappe salvate:</p>
-                    <div id="rooms-nav-list">
-                        <!-- Qui appariranno i tasti delle stanze -->
-                    </div>
                 </div>
             </header>
             <section id="content">
@@ -63,29 +48,40 @@
             <div id="map"></div>
         </main>
 
-        <!-- Modale -->
         <div id="modal-overlay" class="hidden">
             <div class="modal-content">
-                <h3>Dettagli Pin</h3>
+                <h3>Dettagli Posto</h3>
                 <form id="pin-form">
                     <input type="hidden" id="edit-id">
-                    <input type="text" id="f-title" placeholder="Nome pin" required>
-                    <textarea id="f-desc" placeholder="Descrizione"></textarea>
-                    <div class="row">
-                        <select id="f-zone">
-                            <option value="Città">Città</option>
-                            <option value="Fuori Porta">Fuori Porta</option>
-                            <option value="Viaggio Lungo">Viaggio Lungo</option>
-                        </select>
-                        <input type="number" id="f-danger" min="1" max="5" value="1">
+                    <div class="form-group">
+                        <label class="label">Nome Posto</label>
+                        <input type="text" id="f-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">Descrizione</label>
+                        <textarea id="f-desc" placeholder="Note d'accesso..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">Zona / Categoria</label>
+                        <div class="zone-input-wrapper">
+                            <select id="f-zone-select"></select>
+                            <input type="text" id="f-zone-custom" class="hidden" placeholder="Nuova zona...">
+                            <button type="button" id="btn-toggle-zone" onclick="toggleZoneInput()">+</button>
+                        </div>
                     </div>
                     <div class="row">
-                        <input type="number" step="any" id="f-lat" placeholder="Lat">
-                        <input type="number" step="any" id="f-lng" placeholder="Lng">
+                        <div class="col">
+                            <label class="label">Latitudine</label>
+                            <input type="number" step="any" id="f-lat">
+                        </div>
+                        <div class="col">
+                            <label class="label">Longitudine</label>
+                            <input type="number" step="any" id="f-lng">
+                        </div>
                     </div>
                     <div class="modal-btns">
-                        <button type="submit" class="btn-save">Salva</button>
-                        <button type="button" onclick="closeModal()" class="btn-cancel">Annulla</button>
+                        <button type="submit" class="btn-save">Salva Pin</button>
+                        <button type="button" onclick="closeModal()" class="btn-cancel">Chiudi</button>
                     </div>
                 </form>
             </div>
@@ -93,5 +89,4 @@
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>
