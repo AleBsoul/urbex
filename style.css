@@ -1,3 +1,8 @@
+/* RESET E BASE */
+* {
+    box-sizing: border-box; /* Essenziale per Firefox per calcolare bene larghezze e padding */
+}
+
 :root {
     --bg: #121212;
     --panel: #1e1e1e;
@@ -6,32 +11,41 @@
 }
 
 body,
-html,
-#app {
+html {
     height: 100%;
     margin: 0;
+    padding: 0;
     font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
     overflow: hidden;
 }
 
+/* LAYOUT PRINCIPALE */
 #app {
     display: flex;
+    height: 100vh; /* Forza l'altezza alla vista del browser */
+    width: 100vw;
+    overflow: hidden;
 }
 
+/* SIDEBAR */
 #sidebar {
     width: 350px;
+    min-width: 350px; /* Impedisce a Firefox di schiacciare o allargare la sidebar */
+    max-width: 350px;
     background: var(--panel);
     border-right: 1px solid #333;
     display: flex;
     flex-direction: column;
     z-index: 10;
+    height: 100%;
 }
 
 header {
     padding: 20px;
     border-bottom: 1px solid #333;
+    flex-shrink: 0; /* Impedisce alla testata di rimpicciolirsi */
 }
 
 h1 {
@@ -42,6 +56,7 @@ h1 {
     letter-spacing: 1px;
 }
 
+/* CARD E INFO STANZA */
 .card {
     background: #252525;
     padding: 12px;
@@ -90,6 +105,7 @@ h1 {
 
 .join-input input {
     flex: 1;
+    min-width: 0; /* Fix per input dentro flex */
     background: #252525;
     border: 1px solid #444;
     color: white;
@@ -106,10 +122,46 @@ h1 {
     cursor: pointer;
 }
 
+/* LISTA STANZE SALVATE */
+#rooms-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.room-nav-item {
+    background: #252525;
+    border: 1px solid #333;
+    color: #aaa;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-align: left;
+    transition: 0.2s;
+    width: 100%;
+}
+
+.room-nav-item:hover {
+    background: #333;
+    color: white;
+}
+
+.room-nav-item.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #2a150a;
+}
+
+/* CONTENUTO SCROLLABILE (LISTA PIN) */
 #content {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+    min-height: 0; /* Cruciale per Firefox per abilitare lo scroll interno */
 }
 
 #search-field {
@@ -172,15 +224,21 @@ h1 {
     color: white;
 }
 
+/* CONTENITORE MAPPA */
 #map-container {
     flex: 1;
+    position: relative;
+    height: 100%;
+    min-width: 0; /* Permette alla mappa di restringersi e occupare lo spazio rimanente su Firefox */
 }
 
 #map {
     height: 100%;
     width: 100%;
+    display: block;
 }
 
+/* MODALE E FORM */
 .hidden {
     display: none !important;
 }
@@ -248,36 +306,4 @@ select {
     margin-top: 12px;
     cursor: pointer;
     font-size: 0.9rem;
-}
-
-#rooms-nav-list {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    margin-top: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-}
-
-.room-nav-item {
-    background: #252525;
-    border: 1px solid #333;
-    color: #aaa;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    text-align: left;
-    transition: 0.2s;
-}
-
-.room-nav-item:hover {
-    background: #333;
-    color: white;
-}
-
-.room-nav-item.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: #2a150a;
 }
