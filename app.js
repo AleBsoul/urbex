@@ -130,9 +130,9 @@ function renderList() {
     container.innerHTML = zones.map(z => {
         const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
         if (pins.length === 0) return "";
-        return `<div class="zone-header">📂 ${z}</div>` + pins.map(p => `
+        return `<div class="zone-header">${z}</div>` + pins.map(p => `
             <div class="pin-item ${p.is_completed ? 'completed' : ''}">
-                <div style="display:flex; justify-content:space-between"><b>${p.title}</b> <small>${p.latitude ? '📍' : '📝'}</small></div>
+                <div style="display:flex; justify-content:space-between"><b>${p.title}</b> </div>
                 <div class="pin-btns">
                     <button onclick="toggleComp('${p.id}', ${p.is_completed})">${p.is_completed ? 'Riapri' : 'Fatto'}</button>
                     <button onclick="openModal('${p.id}')">Edit</button>
@@ -144,10 +144,42 @@ function renderList() {
 }
 
 function toggleZoneInput(reset = false) {
-    isCustomZone = reset ? false : !isCustomZone;
-    document.getElementById('f-zone-select').classList.toggle('hidden', isCustomZone);
-    document.getElementById('f-zone-custom').classList.toggle('hidden', !isCustomZone);
-    document.getElementById('btn-toggle-zone').innerText = isCustomZone ? "↩" : "+";
+    const select = document.getElementById('f-zone-select');
+    const custom = document.getElementById('f-zone-custom');
+    const btn = document.getElementById('btn-toggle-zone');
+
+    if (reset) {
+        isCustomZone = false;
+        select.classList.remove('hidden');
+        custom.classList.add('hidden');
+        btn.innerText = "+";
+        return;
+    }
+
+    if (!isCustomZone) {
+        // PASSO ALLA SCRITTURA
+        isCustomZone = true;
+        select.classList.add('hidden');
+        custom.classList.remove('hidden');
+        custom.focus();
+        btn.innerText = "OK"; // Cambiamo il testo in OK per chiarezza
+    } else {
+        // CLICCO OK: TORNO AL SELECT E AGGIUNGO TEMPORANEAMENTE LA ZONA
+        const val = custom.value.trim();
+        if (val !== "") {
+            // Crea un'opzione temporanea nel select così la vedi subito
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.innerHTML = val;
+            opt.selected = true;
+            select.appendChild(opt);
+        }
+        
+        isCustomZone = false;
+        select.classList.remove('hidden');
+        custom.classList.add('hidden');
+        btn.innerText = "+";
+    }
 }
 
 function openModal(id = null, latlng = null) {
@@ -170,18 +202,37 @@ function openModal(id = null, latlng = null) {
 
 async function handleSave(e) {
     e.preventDefault();
+    
     const id = document.getElementById('edit-id').value;
-    const zone = isCustomZone ? document.getElementById('f-zone-custom').value : document.getElementById('f-zone-select').value;
+    const select = document.getElementById('f-zone-select');
+    const custom = document.getElementById('f-zone-custom');
+    
+    // Se il campo custom è visibile e ha testo, usa quello. 
+    // Altrimenti usa il valore selezionato nel menu a tendina.
+    let finalZone = "Generale";
+    if (isCustomZone && custom.value.trim() !== "") {
+        finalZone = custom.value.trim();
+    } else if (select.value) {
+        finalZone = select.value;
+    }
+
     const payload = {
         title: document.getElementById('f-title').value,
         description: document.getElementById('f-desc').value,
-        zone: zone || 'Generale',
+        zone: finalZone,
         latitude: document.getElementById('f-lat').value ? parseFloat(document.getElementById('f-lat').value) : null,
         longitude: document.getElementById('f-lng').value ? parseFloat(document.getElementById('f-lng').value) : null,
         room_id: currentRoom.id
     };
-    const { error } = id ? await supabaseClient.from('pins').update(payload).eq('id', id) : await supabaseClient.from('pins').insert([payload]);
-    if (!error) { closeModal(); fetchPins(); }
+
+    const { error } = id 
+        ? await supabaseClient.from('pins').update(payload).eq('id', id) 
+        : await supabaseClient.from('pins').insert([payload]);
+
+    if (!error) { 
+        closeModal(); 
+        fetchPins(); 
+    }
 }
 
 async function createNewRoom() {
