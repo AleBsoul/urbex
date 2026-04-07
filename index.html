@@ -10,6 +10,13 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <!-- LOADING SPINNNER -->
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+        <p>Caricamento dati...</p>
+    </div>
+
     <div id="app">
         <button id="mobile-menu-toggle" onclick="toggleSidebar()">☰</button>
 
@@ -26,7 +33,7 @@
                     </div>
                 </div>
                 <div class="actions">
-                    <button onclick="openModal()" class="btn-primary">+ Aggiungi Pin Manuale</button>
+                    <button onclick="openModal()" class="btn-primary">+ Aggiungi Pin</button>
                     <div class="join-input">
                         <input type="text" id="join-code-field" placeholder="Codice amico...">
                         <button onclick="joinRoomByCode()">Entra</button>

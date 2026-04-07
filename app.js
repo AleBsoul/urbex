@@ -33,6 +33,9 @@ async function init() {
             const idToLoad = (lastId && allIds.includes(lastId)) ? lastId : allIds[0];
             await loadRoom(idToLoad);
         }
+
+        hideLoader();
+        
     } catch (err) {
         console.error("ERRORE CRITICO:", err);
         document.getElementById('room-name').innerText = "Errore Init";
@@ -264,5 +267,12 @@ function closeModal() { document.getElementById('modal-overlay').classList.add('
 async function deletePinDB(id) { if(confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
 async function toggleComp(id, s) { await supabaseClient.from('pins').update({ is_completed: !s }).eq('id', id); fetchPins(); }
 function copyCode() { navigator.clipboard.writeText(document.getElementById('room-code').innerText); alert("Codice copiato!"); }
+
+function hideLoader() {
+    const loader = document.getElementById('loader-wrapper');
+    if (loader) {
+        loader.classList.add('fade-out');
+    }
+}
 
 window.onload = init;
