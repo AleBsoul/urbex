@@ -258,3 +258,34 @@ function copyCode() {
 }
 
 window.onload = init;
+
+// Funzione per il menu mobile
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('open');
+    
+    // Cambia l'icona del tasto
+    const btn = document.getElementById('mobile-menu-toggle');
+    btn.innerText = sidebar.classList.contains('open') ? "✕" : "☰";
+}
+
+// Modifica la funzione loadRoom per chiudere la sidebar su mobile dopo la selezione
+async function loadRoom(id) {
+    const { data } = await supabaseClient.from('rooms').select('*').eq('id', id).single();
+    if (data) {
+        currentRoom = data;
+        localStorage.setItem('urbex_room_id', id);
+        document.getElementById('room-name').innerText = data.name;
+        document.getElementById('room-code').innerText = data.invite_code;
+        renderRoomsUI();
+        fetchPins();
+
+        // CHIUDI SIDEBAR SU MOBILE SE APERTA
+        if (window.innerWidth <= 768) toggleSidebar();
+    }
+}
+
+// Modifica closeModal per assicurarti che l'overlay non blocchi la mappa
+function closeModal() { 
+    document.getElementById('modal-overlay').classList.add('hidden'); 
+}

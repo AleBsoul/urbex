@@ -323,3 +323,66 @@ select {
     z-index: 5;
     backdrop-filter: blur(5px);
 }
+
+
+/* Pulsante Menu Mobile (nascosto su desktop) */
+#mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 3000;
+    background: var(--accent);
+    color: white;
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    cursor: pointer;
+}
+
+/* Regole per Mobile (Smartphone) */
+@media (max-width: 768px) {
+    #mobile-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #app {
+        flex-direction: column; /* Sovrappone gli elementi */
+    }
+
+    #sidebar {
+        position: fixed;
+        left: -100%; /* Nascosto a sinistra */
+        top: 0;
+        bottom: 0;
+        width: 85% !important;
+        min-width: 85% !important;
+        transition: 0.3s ease-in-out;
+        box-shadow: 10px 0 20px rgba(0,0,0,0.5);
+    }
+
+    #sidebar.open {
+        left: 0; /* Compare quando clicchi il menu */
+    }
+
+    #map-container {
+        width: 100vw;
+        height: 100vh;
+    }
+
+    /* Ottimizzazione modale su mobile */
+    .modal-content {
+        width: 95% !important;
+        padding: 20px;
+    }
+
+    .row {
+        flex-direction: column; /* Gli input lat/lng vanno uno sotto l'altro */
+        gap: 0;
+    }
+}
