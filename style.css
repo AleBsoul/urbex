@@ -574,3 +574,30 @@ select {
     filter: brightness(1.2);
     transform: scale(1.1);
 }
+
+/* Stile base per i pulsanti della card */
+.pin-btns button {
+    transition: all 0.2s ease;
+}
+
+/* Colore quando il posto è da completare */
+.btn-complete {
+    background-color: #444; 
+}
+
+/* Colore quando il posto è già completato e vuoi ripristinarlo */
+.btn-restore {
+    background-color: #27ae60 !important; /* Un verde scuro per indicare il successo */
+    color: white !important;
+}
+
+/* Feedback visivo sulla card completata */
+.pin-item.completed {
+    border-left: 4px solid #27ae60;
+    background: #1e1e1e; /* Leggermente più scura */
+}
+
+.pin-item.completed b {
+    text-decoration: line-through;
+    color: #666 !important;
+}

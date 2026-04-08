@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://jxtxxlzunjofjzdhcppp.supabase.co";
-const SUPABASE_KEY = "sb_publishable_59Q9W66beBPxHmFAsg82Aw_dg9O-KgV"; 
+const SUPABASE_KEY = "sb_publishable_59Q9W66beBPxHmFAsg82Aw_dg9O-KgV";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let map, allPins = [], markers = [], currentRoom = null, roomsCache = [], isCustomZone = false;
@@ -25,18 +25,18 @@ async function init() {
             collapsed: false,
             suggestMinLength: 3  // Inizia a suggerire dopo 3 lettere
         })
-        .on('markgeocode', function(e) {
-            const latlng = e.geocode.center;
-            map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
-            
-            // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
-            openModal(null, latlng); 
-        })
-        .addTo(map);
+            .on('markgeocode', function (e) {
+                const latlng = e.geocode.center;
+                map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
+
+                // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
+                openModal(null, latlng);
+            })
+            .addTo(map);
 
 
-        map.on('click', (e) => { if(currentRoom) openModal(null, e.latlng); });
-        
+        map.on('click', (e) => { if (currentRoom) openModal(null, e.latlng); });
+
         document.getElementById('search-field').oninput = renderList;
         document.getElementById('pin-form').onsubmit = handleSave;
 
@@ -109,7 +109,7 @@ async function loadRoom(id) {
 async function deleteRoom(e, id) {
     e.stopPropagation();
     if (!confirm("Rimuovere questa mappa dalla tua lista?")) return;
-    
+
     let ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
     ids = ids.filter(i => i !== id);
     localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
@@ -132,17 +132,17 @@ function renderAll() {
     allPins.forEach(p => {
         if (p.latitude && p.longitude) {
             const color = p.is_completed ? '#27ae60' : '#4287f5';
-            const m = L.circleMarker([p.latitude, p.longitude], { 
-                radius: 10, 
-                fillColor: color, 
-                color: '#fff', 
+            const m = L.circleMarker([p.latitude, p.longitude], {
+                radius: 10,
+                fillColor: color,
+                color: '#fff',
                 weight: 2,
-                fillOpacity: 0.8 
+                fillOpacity: 0.8
             }).addTo(map);
 
             // Crea il link per Google Maps
             const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
-            
+
             // Popup con stile: cliccando sul nome vai su Maps
             const popupContent = `
                 <div style="text-align:center; padding:5px;">
@@ -152,7 +152,7 @@ function renderAll() {
                     </a>
                 </div>
             `;
-            
+
             m.bindPopup(popupContent);
             markers.push(m);
         }
@@ -163,31 +163,37 @@ function renderAll() {
 function renderList() {
     const term = document.getElementById('search-field').value.toLowerCase();
     const container = document.getElementById('pin-list-container');
+
+    // Otteniamo le zone uniche dai pin caricati
     const zones = [...new Set(allPins.map(p => p.zone || 'Generale'))].sort();
-    
-    // Aggiorna anche il selettore zone nella modale
+
+    // Aggiorna il selettore zone nella modale
     document.getElementById('f-zone-select').innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
 
     container.innerHTML = zones.map(z => {
         const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
         if (pins.length === 0) return "";
-        
+
         return `<div class="zone-header">${z}</div>` + pins.map(p => {
             const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
-            
+
             return `
-                <div class="pin-item ${p.is_completed ? 'completed' : ''}">
-                    <div style="cursor:pointer;" onclick="window.open('${mapsUrl}', '_blank')">
-                        <b style="color:white; display:block;">${p.title}</b>
-                        <small style="color:#888;">${p.description || 'Nessuna descrizione'}</small>
-                    </div>
-                    <div class="pin-btns">
-                        <button onclick="toggleComp('${p.id}', ${p.is_completed})">Stato</button>
-                        <button onclick="openModal('${p.id}')">Edit</button>
-                        <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
-                    </div>
-                </div>
-            `;
+    <div class="pin-item ${p.is_completed ? 'completed' : ''}" data-id="${p.id}">
+        <div style="cursor:pointer;" onclick="window.open('${mapsUrl}', '_blank')">
+            <b style="color:white; display:block;">${p.title}</b>
+            <small style="color:#888;">${p.description || 'Nessuna descrizione'}</small>
+        </div>
+        <div class="pin-btns">
+            <button 
+                onclick="toggleComp('${p.id}', ${p.is_completed})" 
+                class="btn-state-toggle ${p.is_completed ? 'btn-restore' : 'btn-complete'}">
+                ${p.is_completed ? 'Ripristina' : 'Completa'}
+            </button>
+            <button onclick="openModal('${p.id}')">Edit</button>
+            <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
+        </div>
+    </div>
+`;
         }).join('');
     }).join('');
 }
@@ -223,7 +229,7 @@ function toggleZoneInput(reset = false) {
             opt.selected = true;
             select.appendChild(opt);
         }
-        
+
         isCustomZone = false;
         select.classList.remove('hidden');
         custom.classList.add('hidden');
@@ -251,11 +257,11 @@ function openModal(id = null, latlng = null) {
 
 async function handleSave(e) {
     e.preventDefault();
-    
+
     const id = document.getElementById('edit-id').value;
     const customZoneValue = document.getElementById('f-zone-custom').value.trim();
     const selectZoneValue = document.getElementById('f-zone-select').value;
-    
+
     let finalZone = (isCustomZone && customZoneValue !== "") ? customZoneValue : selectZoneValue;
 
     // 1. Se è una zona nuova, salvala nel database delle zone
@@ -274,14 +280,14 @@ async function handleSave(e) {
         room_id: currentRoom.id
     };
 
-    const { error } = id 
-        ? await supabaseClient.from('pins').update(payload).eq('id', id) 
+    const { error } = id
+        ? await supabaseClient.from('pins').update(payload).eq('id', id)
         : await supabaseClient.from('pins').insert([payload]);
 
-    if (!error) { 
-        closeModal(); 
-        await fetchZones(); 
-        await fetchPins(); 
+    if (!error) {
+        closeModal();
+        await fetchZones();
+        await fetchPins();
     }
 }
 
@@ -303,7 +309,7 @@ async function joinRoomByCode() {
     const { data } = await supabaseClient.from('rooms').select('*').eq('invite_code', code).single();
     if (data) {
         const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
-        if(!ids.includes(data.id)) ids.push(data.id);
+        if (!ids.includes(data.id)) ids.push(data.id);
         localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
         await refreshRoomsList();
         loadRoom(data.id);
@@ -311,9 +317,53 @@ async function joinRoomByCode() {
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
-async function deletePinDB(id) { if(confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
-async function toggleComp(id, s) { await supabaseClient.from('pins').update({ is_completed: !s }).eq('id', id); fetchPins(); }
-function copyCode() { navigator.clipboard.writeText(document.getElementById('room-code').innerText); alert("Codice copiato!"); }
+async function deletePinDB(id) { if (confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
+async function toggleComp(id, currentState) {
+    // 1. Invertiamo lo stato localmente
+    const newState = !currentState;
+
+    // 2. Aggiorniamo l'array in memoria (allPins) così i dati restano sincronizzati
+    const pinIndex = allPins.findIndex(p => p.id === id);
+    if (pinIndex !== -1) {
+        allPins[pinIndex].is_completed = newState;
+    }
+
+    // 3. Modifichiamo il DOM (l'interfaccia) istantaneamente
+    // Cerchiamo la card specifica tramite un selettore (dovremo aggiungere l'ID alla card)
+    const pinElement = document.querySelector(`[data-id="${id}"]`);
+    if (pinElement) {
+        // Aggiunge/rimuove la classe CSS per l'effetto sbiadito/barrato
+        pinElement.classList.toggle('completed', newState);
+
+        // Aggiorna il testo e la classe del pulsante
+        const btn = pinElement.querySelector('.btn-state-toggle');
+        if (btn) {
+            btn.innerText = newState ? 'Ripristina' : 'Completa';
+            btn.setAttribute('onclick', `toggleComp('${id}', ${newState})`);
+            btn.className = `btn-state-toggle ${newState ? 'btn-restore' : 'btn-complete'}`;
+        }
+    }
+
+    // 4. Aggiorniamo anche il marker sulla mappa senza ricaricare tutto
+    const marker = markers.find(m => m.options.id === id || (m._latlng.lat === allPins[pinIndex].latitude && m._latlng.lng === allPins[pinIndex].longitude));
+    if (marker) {
+        const newColor = newState ? '#27ae60' : '#4287f5';
+        marker.setStyle({ fillColor: newColor });
+    }
+
+    // 5. Inviamo la modifica al database "in background"
+    const { error } = await supabaseClient
+        .from('pins')
+        .update({ is_completed: newState })
+        .eq('id', id);
+
+    if (error) {
+        console.error("Errore database:", error);
+        alert("Errore nel salvataggio, ricarico...");
+        fetchPins(); // Solo in caso di errore facciamo il fetch di emergenza
+    }
+}
+function copyCode() { navigator.clipboard.writeText(document.getElementById('room-code').innerText); document.getElementById('copy-code-btn').innerText = "✅copiato!"; setTimeout(() => { document.getElementById('copy-code-btn').innerText = "📋"; }, 2000); }
 
 function hideLoader() {
     const loader = document.getElementById('loader-wrapper');
@@ -327,7 +377,7 @@ async function renameCurrentRoom() {
     if (!currentRoom) return;
 
     const newName = prompt("Inserisci il nuovo nome per questa mappa:", currentRoom.name);
-    
+
     // Se l'utente annulla o non scrive nulla, usciamo
     if (!newName || newName.trim() === "" || newName === currentRoom.name) return;
 
@@ -344,13 +394,13 @@ async function renameCurrentRoom() {
 
         // 2. Aggiorna lo stato locale
         currentRoom.name = data.name;
-        
+
         // 3. Aggiorna l'interfaccia
         document.getElementById('room-name').innerText = data.name;
-        
+
         // 4. Aggiorna la cache delle stanze e rinfresca la lista nella sidebar
         await refreshRoomsList();
-        
+
         alert("Mappa rinominata con successo!");
     } catch (err) {
         console.error("Errore durante la rinomina:", err);
@@ -366,7 +416,7 @@ async function fetchZones() {
         .select('name')
         .eq('room_id', currentRoom.id)
         .order('name');
-    
+
     if (!error && data) {
         renderZoneSelect(data.map(z => z.name));
     }
