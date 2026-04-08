@@ -223,7 +223,6 @@ h1 {
     margin: 25px 0 10px;
     background: linear-gradient(90deg, var(--accent-dim), transparent);
     border-left: 3px solid var(--accent);
-    position: sticky;
     top: 0;
     backdrop-filter: blur(8px);
     z-index: 5;

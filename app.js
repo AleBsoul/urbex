@@ -3,6 +3,7 @@ const SUPABASE_KEY = "sb_publishable_59Q9W66beBPxHmFAsg82Aw_dg9O-KgV";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let map, allPins = [], markers = [], currentRoom = null, roomsCache = [], isCustomZone = false;
+let zonesCache = []; 
 
 // MENU MOBILE
 function toggleSidebar() {
@@ -262,7 +263,7 @@ function renderList() {
     const zones = [...new Set(allPins.map(p => p.zone || 'Generale'))].sort();
 
     // Aggiorna il selettore zone nella modale
-    document.getElementById('f-zone-select').innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
+    //document.getElementById('f-zone-select').innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
 
     container.innerHTML = zones.map(z => {
         const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
@@ -367,6 +368,8 @@ function openModal(id = null, latlng = null) {
     document.getElementById('pin-form').reset();
     document.getElementById('edit-id').value = id || "";
 
+    renderZoneSelect(zonesCache);
+
     if (id) {
         const p = allPins.find(x => x.id === id);
         document.getElementById('f-title').value = p.title;
@@ -395,11 +398,12 @@ async function handleSave(e) {
 
     let finalZone = (isCustomZone && customZoneValue !== "") ? customZoneValue : selectZoneValue;
 
-    if (isCustomZone && customZoneValue !== "") {
-        await supabaseClient
-            .from('zones')
-            .upsert({ name: finalZone, room_id: currentRoom.id }, { onConflict: 'name, room_id' });
-    }
+
+    await supabaseClient
+        .from('zones')
+        .upsert({ name: finalZone, room_id: currentRoom.id }, { onConflict: 'name,room_id' });
+
+
 
     const payload = {
         title: document.getElementById('f-title').value,
@@ -432,6 +436,8 @@ async function handleSave(e) {
         showToast("❌ Errore durante il salvataggio");
         console.error(error);
     }
+
+    
 }
 
 
@@ -632,17 +638,81 @@ async function fetchZones() {
         .order('name');
 
     if (!error && data) {
-        renderZoneSelect(data.map(z => z.name));
+        zonesCache = data.map(z => z.name);
+        renderZoneSelect(zonesCache);
+        // Nota: non chiamiamo renderList qui per evitare di mostrare zone vuote nella sidebar, 
+        // come da tua richiesta precedente.
     }
 }
 
 function renderZoneSelect(zoneNames) {
     const select = document.getElementById('f-zone-select');
-    // Se non ci sono zone, metti almeno 'Generale'
     const finalZones = zoneNames.length > 0 ? zoneNames : ['Generale'];
     select.innerHTML = finalZones.map(z => `<option value="${z}">${z}</option>`).join('');
 }
 
+function openZonesModal() {
+    const list = document.getElementById('zones-manager-list');
+    if (!list) return;
+
+    list.innerHTML = zonesCache.map(zone => `
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+            <input type="text" value="${zone}" id="input-zone-${zone.replace(/\s+/g, '-')}" 
+                   style="margin-top: 0; flex: 1; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 6px;">
+            <button onclick="confirmRenameZone('${zone}')" 
+                    style="padding: 8px 12px; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer;">
+                💾
+            </button>
+        </div>
+    `).join('');
+    document.getElementById('manage-zones-modal').classList.remove('hidden');
+}
+
+function closeZonesModal() {
+    document.getElementById('manage-zones-modal').classList.add('hidden');
+}
+
+
+async function confirmRenameZone(oldName) {
+    const inputId = `input-zone-${oldName.replace(/\s+/g, '-')}`;
+    const newName = document.getElementById(inputId).value.trim();
+
+    if (!newName || newName === oldName) {
+        closeZonesModal();
+        return;
+    }
+
+    try {
+        // 1. Aggiorna il nome nella tabella 'zones'
+        const { error: zoneErr } = await supabaseClient
+            .from('zones')
+            .update({ name: newName })
+            .eq('room_id', currentRoom.id)
+            .eq('name', oldName);
+
+        if (zoneErr) throw zoneErr;
+
+        // 2. Aggiorna tutti i pin che usavano il vecchio nome (per coerenza dati)
+        const { error: pinsErr } = await supabaseClient
+            .from('pins')
+            .update({ zone: newName })
+            .eq('room_id', currentRoom.id)
+            .eq('zone', oldName);
+
+        if (pinsErr) throw pinsErr;
+
+        showToast(`✅ Zona rinominata in "${newName}"`);
+        
+        // 3. Refresh dei dati
+        await fetchZones(); // Aggiorna zonesCache e la select della modale
+        await fetchPins();  // Ricarica i pin (che ora hanno il nuovo nome zona) e aggiorna la sidebar
+        
+        closeZonesModal();
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Errore durante la rinomina della zona");
+    }
+}
 
 function showToast(message) {
     const container = document.getElementById('toast-container');
@@ -670,13 +740,18 @@ async function downloadPDFBackup() {
     const roomName = document.getElementById('room-name').innerText;
 
     // Titolo del PDF
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Titolo del PDF centrato
     doc.setFontSize(18);
     doc.setTextColor(255, 78, 0); // Colore arancione accent
-    doc.text(`Backup Mappa: ${roomName}`, 14, 20);
+
+    // Il terzo parametro è la coordinata X (metà pagina), il quarto la Y, 
+    // e l'ultimo indica l'allineamento
+    doc.text(`Backup Mappa`, pageWidth / 2, 20, { align: 'center' });
 
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generato il: ${new Date().toLocaleString()}`, 14, 28);
 
     // Raggruppamento pin per zona
     const groupedPins = allPins.reduce((acc, pin) => {
