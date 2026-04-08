@@ -101,6 +101,7 @@ async function loadRoom(id) {
             document.getElementById('mobile-menu-toggle').innerText = "☰";
         }
         renderRoomsUI();
+        await fetchZones();
         fetchPins();
     }
 }
@@ -131,8 +132,28 @@ function renderAll() {
     allPins.forEach(p => {
         if (p.latitude && p.longitude) {
             const color = p.is_completed ? '#27ae60' : '#4287f5';
-            const m = L.circleMarker([p.latitude, p.longitude], { radius: 10, fillColor: color, color: '#fff', fillOpacity: 0.8 }).addTo(map);
-            m.bindPopup(`<b>${p.title}</b>`);
+            const m = L.circleMarker([p.latitude, p.longitude], { 
+                radius: 10, 
+                fillColor: color, 
+                color: '#fff', 
+                weight: 2,
+                fillOpacity: 0.8 
+            }).addTo(map);
+
+            // Crea il link per Google Maps
+            const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
+            
+            // Popup con stile: cliccando sul nome vai su Maps
+            const popupContent = `
+                <div style="text-align:center; padding:5px;">
+                    <strong style="display:block; margin-bottom:5px;">${p.title}</strong>
+                    <a href="${mapsUrl}" target="_blank" style="color:#ff4e00; text-decoration:none; font-weight:bold; font-size:0.8rem;">
+                        📍 Apri in Google Maps
+                    </a>
+                </div>
+            `;
+            
+            m.bindPopup(popupContent);
             markers.push(m);
         }
     });
@@ -144,22 +165,30 @@ function renderList() {
     const container = document.getElementById('pin-list-container');
     const zones = [...new Set(allPins.map(p => p.zone || 'Generale'))].sort();
     
-    const select = document.getElementById('f-zone-select');
-    select.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
+    // Aggiorna anche il selettore zone nella modale
+    document.getElementById('f-zone-select').innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
 
     container.innerHTML = zones.map(z => {
         const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
         if (pins.length === 0) return "";
-        return `<div class="zone-header">${z}</div>` + pins.map(p => `
-            <div class="pin-item ${p.is_completed ? 'completed' : ''}">
-                <div style="display:flex; justify-content:space-between"><b>${p.title}</b> </div>
-                <div class="pin-btns">
-                    <button onclick="toggleComp('${p.id}', ${p.is_completed})">${p.is_completed ? 'Riapri' : 'Fatto'}</button>
-                    <button onclick="openModal('${p.id}')">Edit</button>
-                    <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
+        
+        return `<div class="zone-header">${z}</div>` + pins.map(p => {
+            const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
+            
+            return `
+                <div class="pin-item ${p.is_completed ? 'completed' : ''}">
+                    <div style="cursor:pointer;" onclick="window.open('${mapsUrl}', '_blank')">
+                        <b style="color:white; display:block;">${p.title}</b>
+                        <small style="color:#888;">${p.description || 'Nessuna descrizione'}</small>
+                    </div>
+                    <div class="pin-btns">
+                        <button onclick="toggleComp('${p.id}', ${p.is_completed})">Stato</button>
+                        <button onclick="openModal('${p.id}')">Edit</button>
+                        <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }).join('');
 }
 
@@ -224,22 +253,22 @@ async function handleSave(e) {
     e.preventDefault();
     
     const id = document.getElementById('edit-id').value;
-    const select = document.getElementById('f-zone-select');
-    const custom = document.getElementById('f-zone-custom');
+    const customZoneValue = document.getElementById('f-zone-custom').value.trim();
+    const selectZoneValue = document.getElementById('f-zone-select').value;
     
-    // Se il campo custom è visibile e ha testo, usa quello. 
-    // Altrimenti usa il valore selezionato nel menu a tendina.
-    let finalZone = "Generale";
-    if (isCustomZone && custom.value.trim() !== "") {
-        finalZone = custom.value.trim();
-    } else if (select.value) {
-        finalZone = select.value;
+    let finalZone = (isCustomZone && customZoneValue !== "") ? customZoneValue : selectZoneValue;
+
+    // 1. Se è una zona nuova, salvala nel database delle zone
+    if (isCustomZone && customZoneValue !== "") {
+        await supabaseClient
+            .from('zones')
+            .upsert({ name: finalZone, room_id: currentRoom.id }, { onConflict: 'name, room_id' });
     }
 
     const payload = {
         title: document.getElementById('f-title').value,
         description: document.getElementById('f-desc').value,
-        zone: finalZone,
+        zone: finalZone || 'Generale',
         latitude: document.getElementById('f-lat').value ? parseFloat(document.getElementById('f-lat').value) : null,
         longitude: document.getElementById('f-lng').value ? parseFloat(document.getElementById('f-lng').value) : null,
         room_id: currentRoom.id
@@ -251,7 +280,8 @@ async function handleSave(e) {
 
     if (!error) { 
         closeModal(); 
-        fetchPins(); 
+        await fetchZones(); 
+        await fetchPins(); 
     }
 }
 
@@ -290,6 +320,63 @@ function hideLoader() {
     if (loader) {
         loader.classList.add('fade-out');
     }
+}
+
+
+async function renameCurrentRoom() {
+    if (!currentRoom) return;
+
+    const newName = prompt("Inserisci il nuovo nome per questa mappa:", currentRoom.name);
+    
+    // Se l'utente annulla o non scrive nulla, usciamo
+    if (!newName || newName.trim() === "" || newName === currentRoom.name) return;
+
+    try {
+        // 1. Aggiorna Supabase
+        const { data, error } = await supabaseClient
+            .from('rooms')
+            .update({ name: newName.trim() })
+            .eq('id', currentRoom.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // 2. Aggiorna lo stato locale
+        currentRoom.name = data.name;
+        
+        // 3. Aggiorna l'interfaccia
+        document.getElementById('room-name').innerText = data.name;
+        
+        // 4. Aggiorna la cache delle stanze e rinfresca la lista nella sidebar
+        await refreshRoomsList();
+        
+        alert("Mappa rinominata con successo!");
+    } catch (err) {
+        console.error("Errore durante la rinomina:", err);
+        alert("Impossibile rinominare la mappa. Riprova.");
+    }
+}
+
+// fetch delle zone di interesse
+async function fetchZones() {
+    if (!currentRoom) return;
+    const { data, error } = await supabaseClient
+        .from('zones')
+        .select('name')
+        .eq('room_id', currentRoom.id)
+        .order('name');
+    
+    if (!error && data) {
+        renderZoneSelect(data.map(z => z.name));
+    }
+}
+
+function renderZoneSelect(zoneNames) {
+    const select = document.getElementById('f-zone-select');
+    // Se non ci sono zone, metti almeno 'Generale'
+    const finalZones = zoneNames.length > 0 ? zoneNames : ['Generale'];
+    select.innerHTML = finalZones.map(z => `<option value="${z}">${z}</option>`).join('');
 }
 
 window.onload = init;

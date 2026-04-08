@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -13,6 +14,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 </head>
+
 <body>
 
     <!-- LOADING SPINNNER -->
@@ -29,7 +31,11 @@
                 <h1>Urbex Explorer</h1>
                 <div class="card">
                     <p class="label">Mappa Attiva:</p>
-                    <h2 id="room-name">Caricamento...</h2>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h2 id="room-name">Caricamento...</h2>
+                        <button onclick="renameCurrentRoom()"
+                            style="background:transparent; border:none; cursor:pointer; font-size:0.9rem; color:var(--accent);">rinomina</button>
+                    </div>
                     <p class="label">Codice Invito:</p>
                     <div class="code-box">
                         <code id="room-code">----</code>
@@ -100,4 +106,5 @@
     </div>
     <script src="app.js"></script>
 </body>
+
 </html>
