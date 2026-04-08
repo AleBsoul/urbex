@@ -16,27 +16,54 @@ function toggleSidebar() {
 // INIZIALIZZAZIONE
 async function init() {
     try {
-        map = L.map('map', {
-            zoomControl: false
-        }).setView([45.4642, 9.1900], 12);
+        map = L.map('map', { zoomControl: false }).setView([45.4642, 9.1900], 12);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+        // 1. Inizializza il Geocoder
         const geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false, // Non vogliamo che metta un marker automatico "brutto"
-            placeholder: "Cerca indirizzo o luogo...",
-            errorMessage: "Nessun risultato trovato.",
+            defaultMarkGeocode: false,
+            placeholder: "Cerca o incolla link Google Maps...",
             collapsed: false,
-            suggestMinLength: 3,  // Inizia a suggerire dopo 3 lettere
             position: 'topleft'
         })
-            .on('markgeocode', function (e) {
-                const latlng = e.geocode.center;
-                map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
+        .on('markgeocode', function (e) {
+            const latlng = e.geocode.center;
+            map.setView(latlng, 16);
+            openModal(null, latlng);
+        })
+        .addTo(map);
 
-                // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
-                openModal(null, latlng);
-            })
-            .addTo(map);
+        // 2. RECUPERA L'INPUT E AGGIUNGI IL GESTORE PER I LINK
+        // Usiamo un timeout minimo per essere sicuri che Leaflet abbia finito di disegnare l'elemento nel DOM
+        setTimeout(() => {
+            const searchInput = document.querySelector('.leaflet-control-geocoder-form input');
+            
+            if (searchInput) {
+                searchInput.addEventListener('paste', async (e) => {
+                    // Recupera il testo che l'utente sta incollando
+                    const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                    
+                    // Regex per estrarre coordinate da URL lungo o query q=
+                    const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)|q=(-?\d+\.\d+),(-?\d+\.\d+)/;
+                    const match = pastedText.match(regex);
+
+                    if (match) {
+                        e.preventDefault(); // Blocca l'incollaggio del link chilometrico
+                        
+                        // Il match può essere nel gruppo 1,2 o 3,4 a seconda della regex
+                        const lat = parseFloat(match[1] || match[3]);
+                        const lng = parseFloat(match[2] || match[4]);
+                        const latlng = L.latLng(lat, lng);
+
+                        map.flyTo(latlng, 16);
+                        openModal(null, latlng);
+                        
+                        searchInput.value = ""; // Pulisce la barra
+                        showToast("📍 Coordinate estratte dal link!");
+                    }
+                });
+            }
+        }, 500);
 
 
         map.on('click', (e) => { if (currentRoom) openModal(null, e.latlng); });
@@ -799,5 +826,7 @@ async function downloadPDFBackup() {
     doc.save(`Backup_Urbex_${roomName.replace(/\s+/g, '_')}.pdf`);
     showToast("✅ PDF generato con successo!");
 }
+
+
 
 window.onload = init;
