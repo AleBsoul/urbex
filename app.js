@@ -3,7 +3,7 @@ const SUPABASE_KEY = "sb_publishable_59Q9W66beBPxHmFAsg82Aw_dg9O-KgV";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let map, allPins = [], markers = [], currentRoom = null, roomsCache = [], isCustomZone = false;
-let zonesCache = []; 
+let zonesCache = [];
 
 // MENU MOBILE
 function toggleSidebar() {
@@ -26,30 +26,30 @@ async function init() {
             collapsed: false,
             position: 'topleft'
         })
-        .on('markgeocode', function (e) {
-            const latlng = e.geocode.center;
-            map.setView(latlng, 16);
-            openModal(null, latlng);
-        })
-        .addTo(map);
+            .on('markgeocode', function (e) {
+                const latlng = e.geocode.center;
+                map.setView(latlng, 16);
+                openModal(null, latlng);
+            })
+            .addTo(map);
 
         // 2. RECUPERA L'INPUT E AGGIUNGI IL GESTORE PER I LINK
         // Usiamo un timeout minimo per essere sicuri che Leaflet abbia finito di disegnare l'elemento nel DOM
         setTimeout(() => {
             const searchInput = document.querySelector('.leaflet-control-geocoder-form input');
-            
+
             if (searchInput) {
                 searchInput.addEventListener('paste', async (e) => {
                     // Recupera il testo che l'utente sta incollando
                     const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-                    
+
                     // Regex per estrarre coordinate da URL lungo o query q=
                     const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)|q=(-?\d+\.\d+),(-?\d+\.\d+)/;
                     const match = pastedText.match(regex);
 
                     if (match) {
                         e.preventDefault(); // Blocca l'incollaggio del link chilometrico
-                        
+
                         // Il match può essere nel gruppo 1,2 o 3,4 a seconda della regex
                         const lat = parseFloat(match[1] || match[3]);
                         const lng = parseFloat(match[2] || match[4]);
@@ -57,7 +57,7 @@ async function init() {
 
                         map.flyTo(latlng, 16);
                         openModal(null, latlng);
-                        
+
                         searchInput.value = ""; // Pulisce la barra
                         showToast("📍 Coordinate estratte dal link!");
                     }
@@ -286,41 +286,55 @@ function renderList() {
     const term = document.getElementById('search-field').value.toLowerCase();
     const container = document.getElementById('pin-list-container');
 
-    // Otteniamo le zone uniche dai pin caricati
-    const zones = [...new Set(allPins.map(p => p.zone || 'Generale'))].sort();
+    // 1. FILTRIAMO PRIMA I PIN (Ricerca per nome O per zona)
+    const filteredPins = allPins.filter(p => {
+        const matchesTitle = p.title.toLowerCase().includes(term);
+        const matchesZone = (p.zone || "Generale").toLowerCase().includes(term);
+        const matchesDesc = (p.description || "").toLowerCase().includes(term);
+        return matchesTitle || matchesZone || matchesDesc;
+    });
 
-    // Aggiorna il selettore zone nella modale
-    //document.getElementById('f-zone-select').innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
+    // 2. RICAVIAMO LE ZONE SOLO DAI PIN FILTRATI
+    const activeZones = [...new Set(filteredPins.map(p => p.zone || 'Generale'))].sort();
 
-    container.innerHTML = zones.map(z => {
-        const pins = allPins.filter(p => (p.zone || 'Generale') === z && p.title.toLowerCase().includes(term));
-        if (pins.length === 0) return "";
+    // 3. GENERIAMO L'HTML
+    if (filteredPins.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;">Nessun risultato trovato</p>`;
+        return;
+    }
 
-        return `<div class="zone-header">${z}</div>` + pins.map(p => {
+    container.innerHTML = activeZones.map(z => {
+        const pinsInZone = filteredPins.filter(p => (p.zone || 'Generale') === z);
+
+        return `
+            <div class="zone-header">${z}</div>
+            ${pinsInZone.map(p => {
             const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
-
             return `
-    <div class="pin-item ${p.is_completed ? 'completed' : ''}" data-id="${p.id}">
-        <div style="cursor:pointer;" onclick="window.open('${mapsUrl}', '_blank')">
-            <b style="color:white; display:block;">${p.title}</b>
-            <small style="color:#888;">${p.description || 'Nessuna descrizione'}</small>
-        </div>
-        <div class="pin-btns">
-            <button onclick="locatePin('${p.id}')" style="background: #555;">📍</button>
-            
-            <button 
-                onclick="toggleComp('${p.id}', ${p.is_completed})" 
-                class="btn-state-toggle ${p.is_completed ? 'btn-restore' : 'btn-complete'}">
-                ${p.is_completed ? 'Ripristina' : 'Completa'}
-            </button>
-            <button onclick="openModal('${p.id}')">Edit</button>
-            <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
-        </div>
-    </div>
-`;
-        }).join('');
+                <div class="pin-item ${p.is_completed ? 'completed' : ''}" data-id="${p.id}">
+                    <div style="cursor:pointer;" onclick="locatePin('${p.id}')">
+                        <b style="color:white; display:block;">${p.title}</b>
+                        <small style="color:#888;">${p.description || 'Nessuna descrizione'}</small>
+                    </div>
+                    
+                    <div class="pin-btns">
+                        <button onclick="locatePin('${p.id}')" style="background: #555;">📍</button>
+                
+                        <button 
+                            onclick="toggleComp('${p.id}', ${p.is_completed})" 
+                            class="btn-state-toggle ${p.is_completed ? 'btn-restore' : 'btn-complete'}">
+                            ${p.is_completed ? 'Ripristina' : 'Completa'}
+                        </button>
+                        <button onclick="openModal('${p.id}')">Edit</button>
+                        <button onclick="deletePinDB('${p.id}')" style="color:#ff6b6b">Elimina</button>
+                    </div>
+                </div>`;
+        }).join('')}
+        `;
     }).join('');
 }
+
+
 
 // localizza il pin nella mappa
 function locatePin(id) {
@@ -464,7 +478,7 @@ async function handleSave(e) {
         console.error(error);
     }
 
-    
+
 }
 
 
@@ -729,11 +743,11 @@ async function confirmRenameZone(oldName) {
         if (pinsErr) throw pinsErr;
 
         showToast(`✅ Zona rinominata in "${newName}"`);
-        
+
         // 3. Refresh dei dati
         await fetchZones(); // Aggiorna zonesCache e la select della modale
         await fetchPins();  // Ricarica i pin (che ora hanno il nuovo nome zona) e aggiorna la sidebar
-        
+
         closeZonesModal();
     } catch (err) {
         console.error(err);
