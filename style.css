@@ -252,16 +252,6 @@ h1 {
     cursor: pointer;
 }
 
-#modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 3000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(5px);
-}
 
 .modal-content {
     background: var(--panel);
@@ -600,4 +590,90 @@ select {
 .pin-item.completed b {
     text-decoration: line-through;
     color: #666 !important;
+}
+
+
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: var(--panel);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    border-left: 4px solid var(--accent);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    font-size: 0.9rem;
+    animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+    min-width: 200px;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; transform: translateY(-10px); }
+}
+
+
+#modal-overlay, 
+#new-room-modal-overlay, 
+#rename-modal-overlay, 
+#confirm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+}
+
+
+.custom-popup div {
+    display: block;
+    width: 100%;
+}
+
+.custom-popup h3, .custom-popup p {
+    text-align: center !important;
+    display: block;
+}
+
+.pin-btns button:first-child {
+    font-size: 0.9rem;
+    padding: 6px 10px;
+}
+
+
+
+/* Fix per i pulsanti nel popup della mappa */
+.popup-actions button {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.popup-actions button:hover {
+    filter: brightness(1.2);
+    transform: translateY(-1px);
+}
+
+.popup-actions .btn-maps:hover {
+    background: #e64600 !important;
+}
+
+/* Rendi il popup un po' più largo per i tasti */
+.leaflet-popup-content {
+    min-width: 200px;
 }

@@ -25,14 +25,14 @@ async function init() {
             collapsed: false,
             suggestMinLength: 3  // Inizia a suggerire dopo 3 lettere
         })
-            .on('markgeocode', function (e) {
-                const latlng = e.geocode.center;
-                map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
+        .on('markgeocode', function (e) {
+            const latlng = e.geocode.center;
+            map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
 
-                // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
-                openModal(null, latlng);
-            })
-            .addTo(map);
+            // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
+            openModal(null, latlng);
+        })
+        .addTo(map);
 
 
         map.on('click', (e) => { if (currentRoom) openModal(null, e.latlng); });
@@ -127,33 +127,66 @@ async function fetchPins() {
 }
 
 function renderAll() {
+    // 1. Pulizia marker esistenti
     markers.forEach(m => map.removeLayer(m));
     markers = [];
+
     allPins.forEach(p => {
         if (p.latitude && p.longitude) {
             const color = p.is_completed ? '#27ae60' : '#4287f5';
-            const m = L.circleMarker([p.latitude, p.longitude], {
-                radius: 10,
-                fillColor: color,
-                color: '#fff',
+            
+            // Creazione del marker
+            const m = L.circleMarker([p.latitude, p.longitude], { 
+                radius: 10, 
+                fillColor: color, 
+                color: '#fff', 
                 weight: 2,
-                fillOpacity: 0.8
+                fillOpacity: 0.8,
+                id: p.id
             }).addTo(map);
 
-            // Crea il link per Google Maps
             const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
-
-            // Popup con stile: cliccando sul nome vai su Maps
+            
+            // --- POPUP CON AZIONI ---
             const popupContent = `
-                <div style="text-align:center; padding:5px;">
-                    <strong style="display:block; margin-bottom:5px;">${p.title}</strong>
-                    <a href="${mapsUrl}" target="_blank" style="color:#ff4e00; text-decoration:none; font-weight:bold; font-size:0.8rem;">
-                        📍 Apri in Google Maps
-                    </a>
-                </div>
-            `;
-
-            m.bindPopup(popupContent);
+    <div class="custom-popup" data-id="${p.id}">
+        <!-- CONTENITORE TESTO CENTRATO -->
+        <div style="text-align: center; margin-bottom: 15px;">
+            <h3 style="color: var(--accent); margin: 0; font-size: 1.1rem;">${p.title}</h3>
+            <p style="font-size: 0.85rem; color: #bbb; margin: 8px 0 0 0; line-height: 1.4;">
+                ${p.description || 'Nessuna descrizione'}
+            </p>
+        </div>
+        
+        <!-- AZIONI (Mantengono il loro layout) -->
+        <div class="popup-actions" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <a href="${mapsUrl}" target="_blank" class="btn-maps" style="flex: 1 1 100%; text-align: center; padding: 8px; font-size: 0.8rem; background: var(--accent); color: white; border-radius: 6px; text-decoration: none; font-weight: bold;">
+               📍 Google Maps
+            </a>
+            
+            <button onclick="toggleComp('${p.id}', ${p.is_completed})" 
+                    style="flex: 1; font-size: 0.75rem; padding: 7px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">
+                ${p.is_completed ? 'Ripristina' : 'Completa'}
+            </button>
+            
+            <button onclick="openModal('${p.id}')" 
+                    style="flex: 1; font-size: 0.75rem; padding: 7px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">
+                Edit
+            </button>
+            
+            <button onclick="deletePinDB('${p.id}')" 
+                    style="width: 100%; margin-top: 4px; font-size: 0.75rem; padding: 5px; cursor: pointer; border-radius: 5px; border: none; background: transparent; color: #ff6b6b; font-weight: bold;">
+                Elimina
+            </button>
+        </div>
+    </div>
+`;
+            
+            m.bindPopup(popupContent, {
+                maxWidth: 220,
+                className: 'modern-popup'
+            });
+            
             markers.push(m);
         }
     });
@@ -184,6 +217,8 @@ function renderList() {
             <small style="color:#888;">${p.description || 'Nessuna descrizione'}</small>
         </div>
         <div class="pin-btns">
+            <button onclick="locatePin('${p.id}')" style="background: #555;">📍</button>
+            
             <button 
                 onclick="toggleComp('${p.id}', ${p.is_completed})" 
                 class="btn-state-toggle ${p.is_completed ? 'btn-restore' : 'btn-complete'}">
@@ -196,6 +231,33 @@ function renderList() {
 `;
         }).join('');
     }).join('');
+}
+
+// localizza il pin nella mappa
+function locatePin(id) {
+    // Trova il pin nei dati locali
+    const pin = allPins.find(p => p.id === id);
+    if (!pin) return;
+
+    // 1. Sposta la visuale della mappa sulle coordinate del pin con un'animazione fluida
+    map.flyTo([pin.latitude, pin.longitude], 17, {
+        duration: 1.5 // durata dell'animazione in secondi
+    });
+
+    // 2. Trova il marker corrispondente e apri il suo popup
+    const marker = markers.find(m => 
+        m.getLatLng().lat === pin.latitude && 
+        m.getLatLng().lng === pin.longitude
+    );
+    
+    if (marker) {
+        marker.openPopup();
+    }
+
+    // 3. Su dispositivi mobili, chiudi la sidebar per mostrare la mappa
+    if (window.innerWidth <= 768) {
+        toggleSidebar();
+    }
 }
 
 function toggleZoneInput(reset = false) {
@@ -241,6 +303,7 @@ function openModal(id = null, latlng = null) {
     toggleZoneInput(true);
     document.getElementById('pin-form').reset();
     document.getElementById('edit-id').value = id || "";
+
     if (id) {
         const p = allPins.find(x => x.id === id);
         document.getElementById('f-title').value = p.title;
@@ -249,8 +312,13 @@ function openModal(id = null, latlng = null) {
         document.getElementById('f-lat').value = p.latitude || "";
         document.getElementById('f-lng').value = p.longitude || "";
     } else if (latlng) {
+        // Se arriviamo da un click sulla mappa o dal geocoder
         document.getElementById('f-lat').value = latlng.lat.toFixed(6);
         document.getElementById('f-lng').value = latlng.lng.toFixed(6);
+    } else {
+        // Se clicchiamo "+ Aggiungi Pin" manualmente, svuotiamo i campi coordinate
+        document.getElementById('f-lat').value = "";
+        document.getElementById('f-lng').value = "";
     }
     document.getElementById('modal-overlay').classList.remove('hidden');
 }
@@ -264,7 +332,6 @@ async function handleSave(e) {
 
     let finalZone = (isCustomZone && customZoneValue !== "") ? customZoneValue : selectZoneValue;
 
-    // 1. Se è una zona nuova, salvala nel database delle zone
     if (isCustomZone && customZoneValue !== "") {
         await supabaseClient
             .from('zones')
@@ -280,27 +347,69 @@ async function handleSave(e) {
         room_id: currentRoom.id
     };
 
-    const { error } = id
-        ? await supabaseClient.from('pins').update(payload).eq('id', id)
-        : await supabaseClient.from('pins').insert([payload]);
+    let error;
+    if (id) {
+        // Modifica esistente
+        const res = await supabaseClient.from('pins').update(payload).eq('id', id);
+        error = res.error;
+    } else {
+        // Nuovo inserimento
+        const res = await supabaseClient.from('pins').insert([payload]);
+        error = res.error;
+    }
 
     if (!error) {
         closeModal();
+        showToast(id ? "✅ Pin aggiornato" : "📍 Pin aggiunto");
+        
+        // RESET E REFRESH: Fondamentale per vedere il nuovo marker
         await fetchZones();
-        await fetchPins();
+        await fetchPins(); // Questo ricarica allPins e chiama renderAll()
+    } else {
+        showToast("❌ Errore durante il salvataggio");
+        console.error(error);
     }
 }
 
-async function createNewRoom() {
-    const name = prompt("Nome Mappa:");
-    if (!name) return;
-    const { data } = await supabaseClient.from('rooms').insert([{ name }]).select().single();
-    if (data) {
-        const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
-        ids.push(data.id);
-        localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
-        await refreshRoomsList();
-        loadRoom(data.id);
+
+function createNewRoom() {
+    document.getElementById('new-room-modal-overlay').classList.remove('hidden');
+    document.getElementById('new-room-input').value = ""; // Pulisce il campo
+    document.getElementById('new-room-input').focus();
+}
+
+function closeNewRoomModal() {
+    document.getElementById('new-room-modal-overlay').classList.add('hidden');
+}
+
+async function confirmCreateRoom() {
+    const name = document.getElementById('new-room-input').value.trim();
+    
+    // Se il nome è vuoto, facciamo vibrare il campo o mostriamo un toast (evitiamo alert!)
+    if (!name) {
+        showToast("⚠️ Inserisci un nome valido");
+        return;
+    }
+
+    try {
+        const { data, error } = await supabaseClient.from('rooms').insert([{ name }]).select().single();
+        
+        if (error) throw error;
+
+        if (data) {
+            const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+            ids.push(data.id);
+            localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
+            
+            await refreshRoomsList();
+            await loadRoom(data.id);
+            
+            closeNewRoomModal();
+            showToast("🏠 Nuova mappa creata!");
+        }
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Errore nella creazione della mappa");
     }
 }
 
@@ -317,50 +426,80 @@ async function joinRoomByCode() {
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
-async function deletePinDB(id) { if (confirm("Elimina pin definitivamente?")) { await supabaseClient.from('pins').delete().eq('id', id); fetchPins(); } }
+
+let pinToDelete = null;
+
+function deletePinDB(id) {
+    pinToDelete = id;
+    document.getElementById('confirm-modal-overlay').classList.remove('hidden');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirm-modal-overlay').classList.add('hidden');
+    pinToDelete = null;
+}
+
+document.getElementById('confirm-delete-btn').onclick = async () => {
+    if (!pinToDelete) return;
+    
+    const { error } = await supabaseClient.from('pins').delete().eq('id', pinToDelete);
+
+    if (!error) {
+        allPins = allPins.filter(p => p.id !== pinToDelete);
+        // Rimuovi marker e card come fatto in precedenza...
+        renderAll(); // O la logica di rimozione singola card
+        showToast("🗑️ Posto eliminato");
+    }
+    closeConfirmModal();
+};
 async function toggleComp(id, currentState) {
-    // 1. Invertiamo lo stato localmente
     const newState = !currentState;
 
-    // 2. Aggiorniamo l'array in memoria (allPins) così i dati restano sincronizzati
+    // 1. Aggiorna i dati in memoria locale
     const pinIndex = allPins.findIndex(p => p.id === id);
-    if (pinIndex !== -1) {
-        allPins[pinIndex].is_completed = newState;
-    }
+    if (pinIndex !== -1) allPins[pinIndex].is_completed = newState;
 
-    // 3. Modifichiamo il DOM (l'interfaccia) istantaneamente
-    // Cerchiamo la card specifica tramite un selettore (dovremo aggiungere l'ID alla card)
-    const pinElement = document.querySelector(`[data-id="${id}"]`);
-    if (pinElement) {
-        // Aggiunge/rimuove la classe CSS per l'effetto sbiadito/barrato
-        pinElement.classList.toggle('completed', newState);
-
-        // Aggiorna il testo e la classe del pulsante
-        const btn = pinElement.querySelector('.btn-state-toggle');
-        if (btn) {
-            btn.innerText = newState ? 'Ripristina' : 'Completa';
-            btn.setAttribute('onclick', `toggleComp('${id}', ${newState})`);
-            btn.className = `btn-state-toggle ${newState ? 'btn-restore' : 'btn-complete'}`;
+    // 2. Aggiorna la CARD nella SIDEBAR (se esiste)
+    const card = document.querySelector(`.pin-item[data-id="${id}"]`);
+    if (card) {
+        card.classList.toggle('completed', newState);
+        const btnSidebar = card.querySelector('.btn-state-toggle') || card.querySelector('button[onclick*="toggleComp"]');
+        if (btnSidebar) {
+            btnSidebar.innerText = newState ? 'Ripristina' : 'Completa';
+            // Aggiorna l'onclick per il prossimo clic
+            btnSidebar.setAttribute('onclick', `toggleComp('${id}', ${newState})`);
         }
     }
 
-    // 4. Aggiorniamo anche il marker sulla mappa senza ricaricare tutto
-    const marker = markers.find(m => m.options.id === id || (m._latlng.lat === allPins[pinIndex].latitude && m._latlng.lng === allPins[pinIndex].longitude));
-    if (marker) {
-        const newColor = newState ? '#27ae60' : '#4287f5';
-        marker.setStyle({ fillColor: newColor });
+    // 3. Aggiorna il POPUP sulla MAPPA (se è aperto)
+    const popup = document.querySelector(`.custom-popup[data-id="${id}"]`);
+    if (popup) {
+        const btnPopup = popup.querySelector('button[onclick*="toggleComp"]');
+        if (btnPopup) {
+            btnPopup.innerText = newState ? 'Ripristina' : 'Completa';
+            btnPopup.setAttribute('onclick', `toggleComp('${id}', ${newState})`);
+        }
     }
 
-    // 5. Inviamo la modifica al database "in background"
+    // 4. Aggiorna il COLORE del cerchietto sulla mappa
+    const marker = markers.find(m => m.options.id === id || 
+        (m._latlng && m._latlng.lat === allPins[pinIndex].latitude && m._latlng.lng === allPins[pinIndex].longitude));
+    
+    if (marker) {
+        marker.setStyle({ fillColor: newState ? '#27ae60' : '#4287f5' });
+    }
+
+    // 5. Notifica visiva e salvataggio DB
+    showToast(newState ? "✅ Segnato come completato" : "🔄 Posto ripristinato");
+
     const { error } = await supabaseClient
         .from('pins')
         .update({ is_completed: newState })
         .eq('id', id);
 
     if (error) {
-        console.error("Errore database:", error);
-        alert("Errore nel salvataggio, ricarico...");
-        fetchPins(); // Solo in caso di errore facciamo il fetch di emergenza
+        showToast("❌ Errore sincronizzazione database");
+        console.error(error);
     }
 }
 function copyCode() { navigator.clipboard.writeText(document.getElementById('room-code').innerText); document.getElementById('copy-code-btn').innerText = "✅copiato!"; setTimeout(() => { document.getElementById('copy-code-btn').innerText = "📋"; }, 2000); }
@@ -373,38 +512,50 @@ function hideLoader() {
 }
 
 
-async function renameCurrentRoom() {
+// Apre la modale e pre-compila il campo con il nome attuale
+function renameCurrentRoom() {
     if (!currentRoom) return;
+    document.getElementById('rename-modal-overlay').classList.remove('hidden');
+    const input = document.getElementById('rename-room-input');
+    input.value = currentRoom.name; 
+    input.focus();
+}
 
-    const newName = prompt("Inserisci il nuovo nome per questa mappa:", currentRoom.name);
+// Chiude la modale di rinomina
+function closeRenameModal() {
+    document.getElementById('rename-modal-overlay').classList.add('hidden');
+}
 
-    // Se l'utente annulla o non scrive nulla, usciamo
-    if (!newName || newName.trim() === "" || newName === currentRoom.name) return;
+// Esegue l'aggiornamento su Supabase
+async function confirmRenameRoom() {
+    const newName = document.getElementById('rename-room-input').value.trim();
+    
+    if (!newName || newName === currentRoom.name) {
+        closeRenameModal();
+        return;
+    }
 
     try {
-        // 1. Aggiorna Supabase
         const { data, error } = await supabaseClient
             .from('rooms')
-            .update({ name: newName.trim() })
+            .update({ name: newName })
             .eq('id', currentRoom.id)
             .select()
             .single();
 
         if (error) throw error;
 
-        // 2. Aggiorna lo stato locale
+        // Aggiorna interfaccia e memoria locale
         currentRoom.name = data.name;
-
-        // 3. Aggiorna l'interfaccia
         document.getElementById('room-name').innerText = data.name;
-
-        // 4. Aggiorna la cache delle stanze e rinfresca la lista nella sidebar
-        await refreshRoomsList();
-
-        alert("Mappa rinominata con successo!");
+        
+        await refreshRoomsList(); // Aggiorna la lista nella sidebar
+        closeRenameModal();
+        showToast("✏️ Mappa rinominata con successo!");
+        
     } catch (err) {
-        console.error("Errore durante la rinomina:", err);
-        alert("Impossibile rinominare la mappa. Riprova.");
+        console.error("Errore rinomina:", err);
+        showToast("❌ Errore durante la rinomina");
     }
 }
 
@@ -427,6 +578,21 @@ function renderZoneSelect(zoneNames) {
     // Se non ci sono zone, metti almeno 'Generale'
     const finalZones = zoneNames.length > 0 ? zoneNames : ['Generale'];
     select.innerHTML = finalZones.map(z => `<option value="${z}">${z}</option>`).join('');
+}
+
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = message;
+
+    container.appendChild(toast);
+
+    // Rimuove l'elemento dal DOM dopo che l'animazione è finita (3 secondi)
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
 window.onload = init;
