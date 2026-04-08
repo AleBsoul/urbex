@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Urb</title>
-    
+
     <!-- Librerie Core -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,6 +14,11 @@
     <!-- Plugin Geocoder -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <!-- Plugin PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -67,6 +72,10 @@
                         <button onclick="joinRoomByCode()">Entra</button>
                     </div>
                     <button onclick="createNewRoom()" class="btn-secondary">+ Nuova Stanza</button>
+                    <button onclick="downloadPDFBackup()" class="btn-secondary"
+                        style="margin-top: 10px; border-color: var(--accent); color: var(--accent);">
+                        📥 Backup PDF
+                    </button>
                 </div>
                 <div id="my-rooms-container">
                     <p class="label">Le tue mappe salvate:</p>
@@ -149,6 +158,20 @@
             </div>
         </div>
     </div>
+    <div id="confirm-room-delete-modal" class="hidden">
+        <div class="modal-content">
+            <h3>Eliminare la mappa?</h3>
+            <p style="margin: 15px 0; color: var(--text-muted); font-size: 0.9rem;">
+                Rimuoverai questa mappa dalla tua lista locale. Se non hai salvato il codice d'invito, potresti perdere
+                l'accesso.
+            </p>
+            <div class="modal-btns">
+                <button id="confirm-room-delete-btn" class="btn-save" style="background: #ff6b6b;">Elimina</button>
+                <button onclick="closeRoomDeleteModal()" class="btn-cancel">Annulla</button>
+            </div>
+        </div>
+    </div>
     <script src="app.js"></script>
 </body>
+
 </html>

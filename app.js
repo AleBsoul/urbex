@@ -15,7 +15,7 @@ function toggleSidebar() {
 // INIZIALIZZAZIONE
 async function init() {
     try {
-        map = L.map('map',{
+        map = L.map('map', {
             zoomControl: false
         }).setView([45.4642, 9.1900], 12);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
@@ -28,14 +28,14 @@ async function init() {
             suggestMinLength: 3,  // Inizia a suggerire dopo 3 lettere
             position: 'topleft'
         })
-        .on('markgeocode', function (e) {
-            const latlng = e.geocode.center;
-            map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
+            .on('markgeocode', function (e) {
+                const latlng = e.geocode.center;
+                map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
 
-            // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
-            openModal(null, latlng);
-        })
-        .addTo(map);
+                // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
+                openModal(null, latlng);
+            })
+            .addTo(map);
 
 
         map.on('click', (e) => { if (currentRoom) openModal(null, e.latlng); });
@@ -87,41 +87,99 @@ function renderRoomsUI() {
     list.innerHTML = roomsCache.map(r => `
         <div class="room-nav-item ${currentRoom?.id === r.id ? 'active' : ''}" onclick="loadRoom('${r.id}')">
             <span>${r.name}</span>
-            <button class="btn-delete-room" onclick="deleteRoom(event, '${r.id}')" title="Elimina mappa">✕</button>
+            <button class="btn-delete-room" onclick="deleteRoom(event, '${r.id}')" title="Elimina mappa">❌</button>
         </div>
     `).join('');
 }
 
 async function loadRoom(id) {
-    const { data } = await supabaseClient.from('rooms').select('*').eq('id', id).single();
-    if (data) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('rooms')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        // Se la stanza non esiste più sul DB o c'è un errore di accesso
+        if (error || !data) {
+            console.warn("Stanza non trovata o eliminata. Pulizia storage in corso...");
+
+            // 1. Recupera la lista attuale degli ID
+            let ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
+
+            // 2. Rimuovi l'ID "corrotto" dalla lista
+            ids = ids.filter(i => i !== id);
+            localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
+
+            // 3. Rimuovi l'ID anche dal puntatore dell'ultima stanza aperta
+            if (localStorage.getItem('urbex_room_id') === id) {
+                localStorage.removeItem('urbex_room_id');
+            }
+
+            showToast("⚠️ Mappa non più disponibile. Aggiornamento...");
+
+            // 4. Re-inizializza la logica di caricamento
+            if (ids.length > 0) {
+                return loadRoom(ids[0]); // Prova a caricare la prossima mappa valida
+            } else {
+                return createAutoRoom(); // Non ci sono più mappe, creane una nuova
+            }
+        }
+
+        // --- Se la stanza esiste, procedi normalmente ---
         currentRoom = data;
         localStorage.setItem('urbex_room_id', id);
         document.getElementById('room-name').innerText = data.name;
         document.getElementById('room-code').innerText = data.invite_code;
+
         if (window.innerWidth <= 768) {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('mobile-menu-toggle').innerText = "☰";
         }
+
         renderRoomsUI();
         await fetchZones();
         fetchPins();
+
+    } catch (err) {
+        console.error("Errore imprevisto nel caricamento stanza:", err);
     }
 }
 
+let roomToDelete = null; // Variabile globale per memorizzare l'ID da eliminare
+
+// Sostituisci la tua vecchia funzione deleteRoom con questa:
 async function deleteRoom(e, id) {
-    e.stopPropagation();
-    if (!confirm("Rimuovere questa mappa dalla tua lista?")) return;
+    e.stopPropagation(); // Evita di caricare la stanza mentre clicchi sulla X
+    roomToDelete = id;
+    document.getElementById('confirm-room-delete-modal').classList.remove('hidden');
+}
+
+function closeRoomDeleteModal() {
+    document.getElementById('confirm-room-delete-modal').classList.add('hidden');
+    roomToDelete = null;
+}
+
+// Gestore del click sul tasto di conferma della modale
+document.getElementById('confirm-room-delete-btn').onclick = async () => {
+    if (!roomToDelete) return;
 
     let ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
-    ids = ids.filter(i => i !== id);
+    ids = ids.filter(i => i !== roomToDelete);
     localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
 
-    if (currentRoom?.id === id) {
-        ids.length > 0 ? await loadRoom(ids[0]) : await createAutoRoom();
+    if (currentRoom?.id === roomToDelete) {
+        if (ids.length > 0) {
+            await loadRoom(ids[0]);
+        } else {
+            await createAutoRoom();
+        }
     }
+
     await refreshRoomsList();
-}
+    closeRoomDeleteModal();
+    showToast("🗑️ Mappa rimossa dalla lista");
+};
 
 async function fetchPins() {
     const { data } = await supabaseClient.from('pins').select('*').eq('room_id', currentRoom.id);
@@ -137,19 +195,19 @@ function renderAll() {
     allPins.forEach(p => {
         if (p.latitude && p.longitude) {
             const color = p.is_completed ? '#27ae60' : '#4287f5';
-            
+
             // Creazione del marker
-            const m = L.circleMarker([p.latitude, p.longitude], { 
-                radius: 10, 
-                fillColor: color, 
-                color: '#fff', 
+            const m = L.circleMarker([p.latitude, p.longitude], {
+                radius: 10,
+                fillColor: color,
+                color: '#fff',
                 weight: 2,
                 fillOpacity: 0.8,
                 id: p.id
             }).addTo(map);
 
             const mapsUrl = `https://www.google.com/maps?q=${p.latitude},${p.longitude}`;
-            
+
             // --- POPUP CON AZIONI ---
             const popupContent = `
     <div class="custom-popup" data-id="${p.id}">
@@ -184,12 +242,12 @@ function renderAll() {
         </div>
     </div>
 `;
-            
+
             m.bindPopup(popupContent, {
                 maxWidth: 220,
                 className: 'modern-popup'
             });
-            
+
             markers.push(m);
         }
     });
@@ -245,16 +303,16 @@ function locatePin(id) {
 
 
     // 1. Sposta la visuale della mappa sulle coordinate del pin con un'animazione fluida
-    map.flyTo([pin.latitude, pin.longitude],map.getZoom(), {
+    map.flyTo([pin.latitude, pin.longitude], map.getZoom(), {
         duration: 1.5 // durata dell'animazione in secondi
     });
 
     // 2. Trova il marker corrispondente e apri il suo popup
-    const marker = markers.find(m => 
-        m.getLatLng().lat === pin.latitude && 
+    const marker = markers.find(m =>
+        m.getLatLng().lat === pin.latitude &&
         m.getLatLng().lng === pin.longitude
     );
-    
+
     if (marker) {
         marker.openPopup();
     }
@@ -366,7 +424,7 @@ async function handleSave(e) {
     if (!error) {
         closeModal();
         showToast(id ? "✅ Pin aggiornato" : "📍 Pin aggiunto");
-        
+
         // RESET E REFRESH: Fondamentale per vedere il nuovo marker
         await fetchZones();
         await fetchPins(); // Questo ricarica allPins e chiama renderAll()
@@ -389,7 +447,7 @@ function closeNewRoomModal() {
 
 async function confirmCreateRoom() {
     const name = document.getElementById('new-room-input').value.trim();
-    
+
     // Se il nome è vuoto, facciamo vibrare il campo o mostriamo un toast (evitiamo alert!)
     if (!name) {
         showToast("⚠️ Inserisci un nome valido");
@@ -398,17 +456,17 @@ async function confirmCreateRoom() {
 
     try {
         const { data, error } = await supabaseClient.from('rooms').insert([{ name }]).select().single();
-        
+
         if (error) throw error;
 
         if (data) {
             const ids = JSON.parse(localStorage.getItem('urbex_rooms_list') || "[]");
             ids.push(data.id);
             localStorage.setItem('urbex_rooms_list', JSON.stringify(ids));
-            
+
             await refreshRoomsList();
             await loadRoom(data.id);
-            
+
             closeNewRoomModal();
             showToast("🏠 Nuova mappa creata!");
         }
@@ -446,7 +504,7 @@ function closeConfirmModal() {
 
 document.getElementById('confirm-delete-btn').onclick = async () => {
     if (!pinToDelete) return;
-    
+
     const { error } = await supabaseClient.from('pins').delete().eq('id', pinToDelete);
 
     if (!error) {
@@ -487,9 +545,9 @@ async function toggleComp(id, currentState) {
     }
 
     // 4. Aggiorna il COLORE del cerchietto sulla mappa
-    const marker = markers.find(m => m.options.id === id || 
+    const marker = markers.find(m => m.options.id === id ||
         (m._latlng && m._latlng.lat === allPins[pinIndex].latitude && m._latlng.lng === allPins[pinIndex].longitude));
-    
+
     if (marker) {
         marker.setStyle({ fillColor: newState ? '#27ae60' : '#4287f5' });
     }
@@ -522,7 +580,7 @@ function renameCurrentRoom() {
     if (!currentRoom) return;
     document.getElementById('rename-modal-overlay').classList.remove('hidden');
     const input = document.getElementById('rename-room-input');
-    input.value = currentRoom.name; 
+    input.value = currentRoom.name;
     input.focus();
 }
 
@@ -534,7 +592,7 @@ function closeRenameModal() {
 // Esegue l'aggiornamento su Supabase
 async function confirmRenameRoom() {
     const newName = document.getElementById('rename-room-input').value.trim();
-    
+
     if (!newName || newName === currentRoom.name) {
         closeRenameModal();
         return;
@@ -553,11 +611,11 @@ async function confirmRenameRoom() {
         // Aggiorna interfaccia e memoria locale
         currentRoom.name = data.name;
         document.getElementById('room-name').innerText = data.name;
-        
+
         await refreshRoomsList(); // Aggiorna la lista nella sidebar
         closeRenameModal();
         showToast("✏️ Mappa rinominata con successo!");
-        
+
     } catch (err) {
         console.error("Errore rinomina:", err);
         showToast("❌ Errore durante la rinomina");
@@ -598,6 +656,73 @@ function showToast(message) {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+
+async function downloadPDFBackup() {
+    if (!allPins || allPins.length === 0) {
+        showToast("⚠️ Nessun pin da scaricare");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const roomName = document.getElementById('room-name').innerText;
+
+    // Titolo del PDF
+    doc.setFontSize(18);
+    doc.setTextColor(255, 78, 0); // Colore arancione accent
+    doc.text(`Backup Mappa: ${roomName}`, 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generato il: ${new Date().toLocaleString()}`, 14, 28);
+
+    // Raggruppamento pin per zona
+    const groupedPins = allPins.reduce((acc, pin) => {
+        const zone = pin.zone || 'Generale';
+        if (!acc[zone]) acc[zone] = [];
+        acc[zone].push(pin);
+        return acc;
+    }, {});
+
+    let currentY = 35;
+
+    Object.keys(groupedPins).forEach((zone, index) => {
+        // Se non c'è abbastanza spazio nella pagina, aggiungi una nuova
+        if (currentY > 240) {
+            doc.addPage();
+            currentY = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(40);
+        doc.text(`Zona: ${zone}`, 14, currentY);
+
+        const tableData = groupedPins[zone].map(p => [
+            p.title,
+            p.description || '-',
+            p.is_completed ? 'Sì' : 'No',
+            `https://www.google.com/maps?q=${p.latitude},${p.longitude}`
+        ]);
+
+        doc.autoTable({
+            startY: currentY + 5,
+            head: [['Nome', 'Descrizione', 'Completato', 'Link Maps']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [255, 78, 0] },
+            columnStyles: {
+                3: { textColor: [0, 0, 255], fontStyle: 'bold' } // Stile link per colonna Maps
+            },
+            didDrawPage: (data) => {
+                currentY = data.cursor.y + 15;
+            }
+        });
+    });
+
+    doc.save(`Backup_Urbex_${roomName.replace(/\s+/g, '_')}.pdf`);
+    showToast("✅ PDF generato con successo!");
 }
 
 window.onload = init;

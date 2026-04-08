@@ -628,7 +628,8 @@ select {
 #modal-overlay, 
 #new-room-modal-overlay, 
 #rename-modal-overlay, 
-#confirm-modal-overlay {
+#confirm-modal-overlay,
+#confirm-room-delete-modal{
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
@@ -657,7 +658,7 @@ select {
 
 /* Tasto Menu Mobile - Posizionato in alto a destra */
 #mobile-menu-toggle {
-    display: none; /* Nascosto su desktop */
+    display: none !important; /* Nascosto su desktop */
     position: fixed;
     top: 20px;     /* Distanza dall'alto */
     right: 20px;   /* Distanza da destra */
@@ -676,20 +677,14 @@ select {
 /* Fix per schermi piccoli (Mobile) */
 @media (max-width: 768px) {
     #mobile-menu-toggle {
-        display: flex;
+        display: flex !important; /* Usiamo flex per mantenere la centratura dell'icona */
         align-items: center;
         justify-content: center;
     }
-
-    /* Sposta leggermente il Geocoder verso il basso o riducine la larghezza se serve */
-    .leaflet-control-geocoder {
-        margin-top: 20px !important;
-        margin-left: 20px !important;
-        width: 240px !important; /* Più stretto su mobile per non toccare il tasto menu */
-    }
     
-    .leaflet-control-geocoder-expanded {
-        width: 240px !important;
+    /* Ridimensionamento della search bar per evitare collisioni col tasto */
+    .leaflet-control-geocoder {
+        width: 220px !important;
     }
 }
 
