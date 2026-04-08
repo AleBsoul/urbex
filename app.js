@@ -18,6 +18,23 @@ async function init() {
         map = L.map('map').setView([45.4642, 9.1900], 12);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+        const geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false, // Non vogliamo che metta un marker automatico "brutto"
+            placeholder: "Cerca indirizzo o luogo...",
+            errorMessage: "Nessun risultato trovato.",
+            collapsed: false,
+            suggestMinLength: 3  // Inizia a suggerire dopo 3 lettere
+        })
+        .on('markgeocode', function(e) {
+            const latlng = e.geocode.center;
+            map.setView(latlng, 16); // Sposta la mappa sul luogo trovato
+            
+            // Opzionale: apri automaticamente la modale per aggiungere un pin in quel punto
+            openModal(null, latlng); 
+        })
+        .addTo(map);
+
+
         map.on('click', (e) => { if(currentRoom) openModal(null, e.latlng); });
         
         document.getElementById('search-field').oninput = renderList;
@@ -35,7 +52,7 @@ async function init() {
         }
 
         hideLoader();
-        
+
     } catch (err) {
         console.error("ERRORE CRITICO:", err);
         document.getElementById('room-name').innerText = "Errore Init";

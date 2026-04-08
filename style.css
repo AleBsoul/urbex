@@ -428,3 +428,117 @@ select {
     opacity: 0;
     visibility: hidden;
 }
+
+
+/* --- SEARCH BAR --- */
+
+.leaflet-control-geocoder-alternatives li,
+.leaflet-control-geocoder-alternatives li a:link,
+.leaflet-control-geocoder-alternatives li a:visited {
+    color: #ffffff !important;
+    text-decoration: none !important;
+    font-family: inherit !important;
+}
+
+/* Quando passi sopra con il mouse (Hover) */
+.leaflet-control-geocoder-alternatives li:hover,
+.leaflet-control-geocoder-alternatives li:hover a {
+    background-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+
+/**-------------------------------------**/
+
+/* --- BARRA DI RICERCA SEMPRE APERTA E MODERNA --- */
+
+/* Contenitore principale */
+.leaflet-control-geocoder {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+    margin-top: 20px !important;
+    margin-right: 20px !important;
+    width: 320px !important; /* Larghezza fissa per stabilità */
+    display: flex !important;
+    align-items: center;
+    overflow: visible !important; /* Permette ai suggerimenti di uscire */
+}
+
+/* Forza la forma espansa */
+.leaflet-control-geocoder-expanded {
+    width: 320px !important;
+}
+
+/* Icona della lente (Fissa a sinistra) */
+.leaflet-control-geocoder-icon {
+    background-color: transparent !important;
+    filter: invert(1) brightness(1.5);
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: default !important; /* Non sembra più un bottone cliccabile */
+}
+
+/* Campo di input testo */
+.leaflet-control-geocoder-form {
+    display: block !important;
+    flex: 1;
+}
+
+.leaflet-control-geocoder-form input {
+    width: 100% !important;
+    height: 40px !important;
+    padding: 0 10px 0 0 !important;
+    color: #ffffff !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: 0.95rem !important;
+    outline: none !important;
+}
+
+/* Suggerimenti (Dropdown) */
+.leaflet-control-geocoder-alternatives {
+    position: absolute;
+    top: 45px; /* Appena sotto la barra */
+    left: 0;
+    width: 100% !important;
+    background: var(--panel) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+    padding: 8px 0 !important;
+    z-index: -1;
+    list-style: none !important;
+}
+
+.leaflet-control-geocoder-alternatives li {
+    padding: 12px 15px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: background 0.2s;
+}
+
+.leaflet-control-geocoder-alternatives li:last-child {
+    border-bottom: none !important;
+}
+
+/* Font Suggerimenti BIANCO */
+.leaflet-control-geocoder-alternatives li a {
+    color: #ffffff !important;
+    text-decoration: none !important;
+    font-size: 0.9rem !important;
+    display: block;
+}
+
+.leaflet-control-geocoder-alternatives li:hover {
+    background: var(--accent) !important;
+}
+
+/* Nascondi il tasto "invio" del plugin perché usiamo il tasto Invio della tastiera */
+.leaflet-control-geocoder-address-context {
+    display: none !important;
+}
