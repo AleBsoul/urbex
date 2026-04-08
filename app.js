@@ -239,8 +239,10 @@ function locatePin(id) {
     const pin = allPins.find(p => p.id === id);
     if (!pin) return;
 
+
+
     // 1. Sposta la visuale della mappa sulle coordinate del pin con un'animazione fluida
-    map.flyTo([pin.latitude, pin.longitude], 17, {
+    map.flyTo([pin.latitude, pin.longitude],map.getZoom(), {
         duration: 1.5 // durata dell'animazione in secondi
     });
 
