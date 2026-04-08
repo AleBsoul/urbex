@@ -655,25 +655,138 @@ select {
     padding: 6px 10px;
 }
 
-
-
-/* Fix per i pulsanti nel popup della mappa */
-.popup-actions button {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    transition: all 0.2s ease;
+/* Tasto Menu Mobile - Posizionato in alto a destra */
+#mobile-menu-toggle {
+    display: none; /* Nascosto su desktop */
+    position: fixed;
+    top: 20px;     /* Distanza dall'alto */
+    right: 20px;   /* Distanza da destra */
+    z-index: 5000; /* Sopra la mappa e il geocoder */
+    background: var(--accent);
+    color: white;
+    border: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px; /* Più squadrato per richiamare il Geocoder */
+    font-size: 1.4rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
 }
 
-.popup-actions button:hover {
-    filter: brightness(1.2);
-    transform: translateY(-1px);
+/* Fix per schermi piccoli (Mobile) */
+@media (max-width: 768px) {
+    #mobile-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Sposta leggermente il Geocoder verso il basso o riducine la larghezza se serve */
+    .leaflet-control-geocoder {
+        margin-top: 20px !important;
+        margin-left: 20px !important;
+        width: 240px !important; /* Più stretto su mobile per non toccare il tasto menu */
+    }
+    
+    .leaflet-control-geocoder-expanded {
+        width: 240px !important;
+    }
 }
 
-.popup-actions .btn-maps:hover {
-    background: #e64600 !important;
+/* Rendi la barra di ricerca del Geocoder coerente con il tasto menu */
+.leaflet-control-geocoder {
+    border-radius: 12px !important;
+    border: none !important;
+    background: var(--panel) !important;
 }
 
-/* Rendi il popup un po' più largo per i tasti */
-.leaflet-popup-content {
-    min-width: 200px;
+
+/* Centratura verticale assoluta per l'input del Geocoder */
+.leaflet-control-geocoder-form {
+    display: flex !important;
+    align-items: center !important;
+    height: 40px !important; /* Deve corrispondere all'altezza del contenitore */
+}
+
+.leaflet-control-geocoder-form input {
+    height: 100% !important;
+    line-height: 40px !important; /* Forza il testo al centro */
+    padding: 0 10px !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    display: block !important;
+}
+
+/* Assicurati che anche l'icona della lente sia centrata */
+.leaflet-control-geocoder-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    margin: 0 !important;
+}
+
+
+/* --- ALLINEAMENTO SEARCH BAR E TASTO MENU --- */
+
+/* 1. La Search Bar (Geocoder) */
+.leaflet-control-geocoder {
+    margin-top: 20px !important;    /* Distanza dal bordo superiore */
+    margin-left: 20px !important;   /* Distanza dal bordo sinistro */
+    height: 46px !important;        /* Altezza definita */
+    width: 280px !important;        /* Larghezza (regolabile) */
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 2. Il Tasto Menu Mobile */
+#mobile-menu-toggle {
+    display: none; /* Nascosto su desktop */
+    position: fixed;
+    top: 20px;          /* STESSA DISTANZA del Geocoder */
+    right: 20px;        /* Distanza dal bordo destro */
+    height: 46px;       /* STESSA ALTEZZA del Geocoder */
+    width: 50px;        /* Larghezza per renderlo quasi quadrato o rettangolare */
+    z-index: 5000;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px; /* STESSO BORDER RADIUS */
+    font-size: 1.2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    
+    /* Centratura icona interna */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix per input interno del Geocoder per centrare il cursore con la nuova altezza */
+.leaflet-control-geocoder-form, 
+.leaflet-control-geocoder-form input {
+    height: 46px !important;
+    line-height: 46px !important;
+}
+
+.leaflet-control-geocoder-icon {
+    height: 46px !important;
+    width: 40px !important;
+}
+
+/* Mostra il tasto solo su Mobile */
+@media (max-width: 768px) {
+    #mobile-menu-toggle {
+        display: flex;
+    }
+    
+    /* Su mobile stretto, riduciamo leggermente la search per non farla toccare col tasto */
+    .leaflet-control-geocoder {
+        width: 220px !important;
+    }
 }

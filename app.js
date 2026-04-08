@@ -15,7 +15,9 @@ function toggleSidebar() {
 // INIZIALIZZAZIONE
 async function init() {
     try {
-        map = L.map('map').setView([45.4642, 9.1900], 12);
+        map = L.map('map',{
+            zoomControl: false
+        }).setView([45.4642, 9.1900], 12);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
         const geocoder = L.Control.geocoder({
@@ -23,7 +25,8 @@ async function init() {
             placeholder: "Cerca indirizzo o luogo...",
             errorMessage: "Nessun risultato trovato.",
             collapsed: false,
-            suggestMinLength: 3  // Inizia a suggerire dopo 3 lettere
+            suggestMinLength: 3,  // Inizia a suggerire dopo 3 lettere
+            position: 'topleft'
         })
         .on('markgeocode', function (e) {
             const latlng = e.geocode.center;
